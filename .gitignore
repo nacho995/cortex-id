@@ -49,3 +49,4 @@ Desktop.ini
 # ===== Coverage =====
 coverage/
 .nyc_output/
+.m2/
