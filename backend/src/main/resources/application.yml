@@ -1,0 +1,47 @@
+server:
+  port: 7432
+
+spring:
+  application:
+    name: cortex-id-backend
+  datasource:
+    url: jdbc:sqlite:${user.home}/.cortex-id/cortex-id.db
+    driver-class-name: org.sqlite.JDBC
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:schema.sql
+  jackson:
+    default-property-inclusion: non_null
+    serialization:
+      write-dates-as-timestamps: false
+
+management:
+  endpoint:
+    health:
+      show-details: always
+    shutdown:
+      enabled: true
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,shutdown
+
+cortex:
+  ai:
+    default-model: claude-sonnet-4-6
+    anthropic:
+      api-url: https://api.anthropic.com/v1
+    openai:
+      api-url: https://api.openai.com/v1
+    google:
+      api-url: https://generativelanguage.googleapis.com/v1beta
+    ollama:
+      api-url: http://localhost:11434
+  data:
+    path: ${user.home}/.cortex-id
+
+logging:
+  level:
+    dev.cortexid: INFO
+    org.springframework.web.socket: INFO

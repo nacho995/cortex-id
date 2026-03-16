@@ -1,0 +1,21 @@
+spring:
+  datasource:
+    url: "jdbc:sqlite::memory:"
+    driver-class-name: org.sqlite.JDBC
+  sql:
+    init:
+      mode: always
+
+cortex:
+  ai:
+    default-model: claude-3-haiku-20240307
+    anthropic:
+      api-url: https://api.anthropic.com/v1
+    ollama:
+      api-url: http://localhost:11434
+  data:
+    path: ${java.io.tmpdir}/cortex-id-test
+
+logging:
+  level:
+    dev.cortexid: WARN

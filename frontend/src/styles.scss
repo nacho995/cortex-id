@@ -1,0 +1,402 @@
+// ─── CSS Custom Properties — Monokai Default Theme ──────────────────────
+:root {
+  // ── Brand Colors (Cortex-ID signature palette) ──────────────────────────────
+  --cortex-red: #FF0040;
+  --cortex-green: #00FF88;
+  --cortex-gradient: linear-gradient(135deg, var(--cortex-red), var(--cortex-green));
+
+  // Backgrounds
+  --bg-primary: #272822;
+  --bg-secondary: #1e1f1c;
+  --bg-tertiary: #171816;
+  --bg-surface: #3e3d32;
+  --bg-hover: #49483e;
+
+  // Text
+  --text-primary: #f8f8f2;
+  --text-secondary: #cfcfc2;
+  --text-muted: #75715e;
+
+  // Accents (Monokai green)
+  --accent-primary: #a6e22e;
+  --accent-secondary: #66d9ef;
+  --accent-success: #a6e22e;
+  --accent-warning: #e6db74;
+  --accent-error: #f92672;
+  --accent-purple: #ae81ff;
+  --accent-pink: #f92672;
+  --accent-teal: #66d9ef;
+
+  // Borders
+  --border-color: #3e3d32;
+  --border-subtle: #49483e;
+
+  // Typography
+  --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+
+  // Layout dimensions
+  --sidebar-width: 260px;
+  --panel-height: 250px;
+  --ai-panel-width: 350px;
+  --titlebar-height: 38px;
+  --tab-height: 35px;
+  --statusbar-height: 22px;
+
+  // Transitions
+  --transition-fast: 0.1s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.3s ease;
+
+  // Shadows
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+
+  // Border radius
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+}
+
+// ─── Reset & Base ─────────────────────────────────────────────────────────────
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body.has-bg-image {
+  background-color: transparent !important;
+}
+
+body.has-bg-image app-root,
+body.has-bg-image app-workbench,
+body.has-bg-image .workbench {
+  background: transparent !important;
+}
+
+body.has-bg-image .workbench-layout {
+  background: transparent !important;
+}
+
+body.has-bg-image .titlebar {
+  background: color-mix(in srgb, var(--bg-tertiary) 60%, transparent) !important;
+  backdrop-filter: blur(12px);
+}
+
+body.has-bg-image .sidebar-area,
+body.has-bg-image .sidebar,
+body.has-bg-image .activity-bar {
+  background: color-mix(in srgb, var(--bg-secondary) 50%, transparent) !important;
+  backdrop-filter: blur(12px);
+}
+
+body.has-bg-image .editor-container,
+body.has-bg-image .editor-area {
+  background: color-mix(in srgb, var(--bg-primary) 40%, transparent) !important;
+  backdrop-filter: blur(8px);
+}
+
+body.has-bg-image .monaco-editor,
+body.has-bg-image .monaco-editor .overflow-guard,
+body.has-bg-image .monaco-editor-background {
+  background: transparent !important;
+}
+
+body.has-bg-image .welcome-screen {
+  background: transparent !important;
+}
+
+body.has-bg-image .panels-container,
+body.has-bg-image .bottom-panel-area {
+  background: color-mix(in srgb, var(--bg-secondary) 55%, transparent) !important;
+  backdrop-filter: blur(12px);
+}
+
+body.has-bg-image .chat-panel,
+body.has-bg-image .ai-panel-area {
+  background: color-mix(in srgb, var(--bg-secondary) 50%, transparent) !important;
+  backdrop-filter: blur(12px);
+}
+
+body.has-bg-image .statusbar {
+  background: color-mix(in srgb, var(--accent-primary) 60%, transparent) !important;
+  backdrop-filter: blur(12px);
+}
+
+// ─── Scrollbars ───────────────────────────────────────────────────────────────
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--bg-hover);
+  border-radius: 4px;
+
+  &:hover {
+    background: var(--text-muted);
+  }
+}
+
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+// ─── Typography ───────────────────────────────────────────────────────────────
+code,
+pre,
+.mono {
+  font-family: var(--font-mono);
+}
+
+a {
+  color: var(--accent-primary);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+// ─── Focus styles ─────────────────────────────────────────────────────────────
+:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: 2px;
+}
+
+// ─── Selection ────────────────────────────────────────────────────────────────
+::selection {
+  background: rgba(137, 180, 250, 0.3);
+  color: var(--text-primary);
+}
+
+// ─── Utility classes ──────────────────────────────────────────────────────────
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.truncate {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// ─── Monaco Editor overrides ──────────────────────────────────────────────────
+.monaco-editor {
+  .margin {
+    background: var(--bg-secondary) !important;
+  }
+}
+
+// ─── xterm.js overrides ───────────────────────────────────────────────────────
+.xterm {
+  padding: 8px;
+  height: 100%;
+
+  .xterm-viewport {
+    background: var(--bg-tertiary) !important;
+  }
+}
+
+// ─── Animations ───────────────────────────────────────────────────────────────
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+// Animated gradient — used by active tab border and statusbar accents
+@keyframes gradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.fade-in {
+  animation: fadeIn var(--transition-normal);
+}
+
+.slide-in-up {
+  animation: slideInUp var(--transition-normal);
+}
+
+.slide-in {
+  animation: slideIn var(--transition-normal);
+}
+
+// Background is rendered globally by BackgroundComponent (position: fixed)
+
+// ─── Wallpaper overlay — applied to the workbench editor area ─────────────────
+.workbench-editor-area {
+  &.has-wallpaper {
+    position: relative;
+
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image: var(--wallpaper-url);
+      background-size: cover;
+      background-position: center;
+      opacity: var(--wallpaper-opacity, 0.15);
+      filter: blur(var(--wallpaper-blur, 8px));
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    > * {
+      position: relative;
+      z-index: 1;
+    }
+  }
+}
+
+// ─── Typography custom properties ─────────────────────────────────────────
+:root {
+  --editor-font-weight: 400;
+  --editor-font-size: 14px;
+  --editor-font-family: 'JetBrains Mono', monospace;
+  --editor-line-height: 1.6;
+  --editor-letter-spacing: 0px;
+}
+
+/* ── CORTEX-ID BRAND OVERRIDES — botones siempre visibles ── */
+:root {
+  --cortex-blue: #0088FF;
+  --cortex-fab-bg: #0088FF;
+  --cortex-fab-color: #ffffff;
+}
+
+/* Settings FAB — azul brillante, siempre visible */
+.settings-fab {
+  background: #0088FF !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 16px rgba(0, 136, 255, 0.5) !important;
+}
+
+/* Chat FAB — azul brillante en el borde derecho */
+.chat-fab {
+  background: #0088FF !important;
+  color: #ffffff !important;
+  box-shadow: -4px 0 16px rgba(0, 136, 255, 0.5) !important;
+}
+
+/* AI toggle btn dentro del editor */
+.ai-toggle-btn {
+  background: #0088FF !important;
+  color: #ffffff !important;
+  border-color: #0066cc !important;
+}
+
+/* Titlebar buttons visibles */
+.titlebar-btn {
+  color: #cfcfc2 !important;
+  &:hover {
+    background: rgba(255,255,255,0.1) !important;
+    color: #ffffff !important;
+  }
+  &.active {
+    color: #0088FF !important;
+  }
+}
+
+/* Statusbar legible */
+.statusbar {
+  background: #0d1117 !important;
+  color: #cfcfc2 !important;
+  border-top: 1px solid #0088FF !important;
+}
+
+.statusbar-btn {
+  color: #cfcfc2 !important;
+  &:hover { color: #ffffff !important; }
+}
+
+/* ── Titlebar buttons — visibles siempre ── */
+.titlebar-actions .titlebar-btn {
+  color: #cfcfc2 !important;
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  width: 32px !important;
+  height: 32px !important;
+  border-radius: 6px !important;
+}
+
+.titlebar-actions .titlebar-btn:hover {
+  background: rgba(255,255,255,0.15) !important;
+  color: #ffffff !important;
+  border-color: rgba(255,255,255,0.2) !important;
+}
+
+.titlebar-actions .titlebar-btn.active {
+  background: rgba(0,136,255,0.2) !important;
+  color: #0088FF !important;
+  border-color: #0088FF !important;
+}
+
+/* Forzar SVG visible en titlebar */
+.titlebar-actions .titlebar-btn svg {
+  stroke: currentColor !important;
+  fill: none !important;
+}

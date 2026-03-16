@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+    branches: ["**"]
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: maven
+
+      - name: Install root dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build shared types
+        run: |
+          pnpm --dir shared-types install --frozen-lockfile
+          pnpm --dir shared-types build
+
+      - name: Frontend typecheck
+        run: |
+          pnpm --dir frontend install --frozen-lockfile
+          pnpm --dir frontend tsc -p tsconfig.app.json --noEmit
+          pnpm --dir frontend tsc -p tsconfig.spec.json --noEmit
+
+      - name: Electron tests and build
+        run: |
+          pnpm --dir electron install --frozen-lockfile
+          pnpm --dir electron test -- --passWithNoTests
+          pnpm --dir electron build
+
+      - name: Backend tests
+        run: mvn -B -f backend/pom.xml test

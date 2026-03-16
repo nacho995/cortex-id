@@ -1,0 +1,91 @@
+appId: dev.cortexid.app
+productName: Cortex-ID
+copyright: Copyright © 2024 Cortex-ID Contributors
+
+# Output directory for packaged apps
+directories:
+  output: release
+  buildResources: assets
+
+# Files to include in the package
+files:
+  - dist/**/*
+  - node_modules/**/*
+  - package.json
+
+# Extra resources (backend JAR, etc.)
+extraResources:
+  - from: ../backend/target/cortex-id-backend.jar
+    to: backend/cortex-id-backend.jar
+    filter:
+      - "**/*"
+  - from: ../frontend/dist/frontend/browser
+    to: frontend
+    filter:
+      - "**/*"
+
+# Linux targets
+linux:
+  target:
+    - target: AppImage
+      arch:
+        - x64
+        - arm64
+    - target: deb
+      arch:
+        - x64
+  category: Development
+  icon: assets/icons/icon.png
+  synopsis: AI-powered IDE with privacy-first design
+  description: >
+    Cortex-ID is an open source AI-powered IDE built with Angular + Java Spring Boot + Electron.
+    Privacy-first: your code never leaves your machine.
+
+# macOS targets
+mac:
+  target:
+    - target: dmg
+      arch:
+        - x64
+        - arm64
+    - target: zip
+      arch:
+        - x64
+        - arm64
+  category: public.app-category.developer-tools
+  icon: assets/icons/icon.icns
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: assets/entitlements.mac.plist
+  entitlementsInherit: assets/entitlements.mac.plist
+
+dmg:
+  contents:
+    - x: 130
+      y: 220
+    - x: 410
+      y: 220
+      type: link
+      path: /Applications
+
+# Windows targets
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+  icon: assets/icons/icon.ico
+  publisherName: Cortex-ID Contributors
+
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  createStartMenuShortcut: true
+  shortcutName: Cortex-ID
+
+# Auto-updater publish config (GitHub releases)
+publish:
+  provider: github
+  owner: cortex-id
+  repo: cortex-id

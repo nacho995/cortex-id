@@ -1,0 +1,11 @@
+spring:
+  sql:
+    init:
+      mode: always
+
+logging:
+  level:
+    dev.cortexid: DEBUG
+    org.springframework.web.socket: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.jdbc: DEBUG

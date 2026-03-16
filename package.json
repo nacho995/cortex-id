@@ -1,0 +1,33 @@
+{
+  "name": "cortex-id",
+  "version": "0.1.0",
+  "description": "Open source AI-powered IDE — Privacy-first, transparent AI agents",
+  "private": true,
+  "packageManager": "pnpm@9.1.0",
+  "scripts": {
+    "setup": "pnpm install && cd shared-types && pnpm install && pnpm build && cd ../electron && pnpm install && cd ../frontend && npm install && cd ../backend && mvn install -q -DskipTests",
+    "dev": "concurrently -k -n backend,frontend,electron -c blue,green,yellow \"pnpm dev:backend\" \"pnpm dev:frontend\" \"sleep 12 && pnpm dev:electron\"",
+    "dev:frontend": "cd frontend && npx ng serve --port 4200",
+    "dev:electron": "cd electron && pnpm dev",
+    "dev:backend": "fuser -k 7432/tcp 2>/dev/null; cd backend && mvn spring-boot:run -DskipTests -Dspring-boot.run.profiles=dev",
+    "dev:no-electron": "concurrently -k -n backend,frontend -c blue,green \"pnpm dev:backend\" \"pnpm dev:frontend\"",
+    "build": "pnpm build:shared-types && pnpm build:frontend && pnpm build:backend && pnpm build:electron",
+    "build:shared-types": "cd shared-types && pnpm build",
+    "build:frontend": "cd frontend && npx ng build --configuration production",
+    "build:backend": "cd backend && mvn package -DskipTests",
+    "build:electron": "cd electron && pnpm build",
+    "test": "pnpm test:frontend && pnpm test:backend && pnpm test:electron",
+    "test:frontend": "cd frontend && npx ng test --watch=false --browsers=ChromeHeadless",
+    "test:backend": "cd backend && mvn test",
+    "test:electron": "cd electron && pnpm test",
+    "package": "pnpm build && cd electron && pnpm package",
+    "clean": "node -e \"const fs=require('fs'); ['node_modules','shared-types/dist','electron/dist','electron/node_modules','frontend/dist','frontend/node_modules','backend/target'].forEach((p)=>fs.rmSync(p,{recursive:true,force:true}));\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}
