@@ -17,6 +17,7 @@ import { ConfigService } from '../../core/config.service';
 import { IpcService } from '../../core/ipc.service';
 import { WebSocketService } from '../../core/websocket.service';
 import { ThemeService, THEMES, CortexTheme, BackgroundConfig } from '../../core/theme.service';
+import { VSCodeThemeParserService } from '../../core/vscode-theme-parser.service';
 import type { AppSettings } from '@cortex-id/shared-types/ipc/app.types';
 import { WsMessageType } from '@cortex-id/shared-types/ws/messages.types';
 
@@ -659,7 +660,7 @@ type SettingsSection = 'general' | 'editor' | 'ai' | 'providers' | 'appearance' 
               <!-- THEME -->
               <h3 class="subsection-title">Theme</h3>
               <div class="theme-grid">
-                @for (theme of availableThemes; track theme.id) {
+                @for (theme of availableThemes(); track theme.id) {
                   <button
                     class="theme-card"
                     [class.active]="activeThemeId() === theme.id"
@@ -1612,6 +1613,7 @@ export class SettingsPanelComponent implements OnInit, OnDestroy {
   private readonly ipc = inject(IpcService);
   private readonly wsService = inject(WebSocketService);
   private readonly themeService = inject(ThemeService);
+  private readonly vscodeParser = inject(VSCodeThemeParserService);
   private readonly destroy$ = new Subject<void>();
 
   readonly activeSection = signal<SettingsSection>('providers');
@@ -1645,8 +1647,8 @@ export class SettingsPanelComponent implements OnInit, OnDestroy {
 
   // ── Appearance: Theme ──────────────────────────────────────────────────────
 
-  /** All available themes — sourced from ThemeService */
-  readonly availableThemes: CortexTheme[] = THEMES;
+  /** All available themes — built-in + imported, sourced from ThemeService */
+  readonly availableThemes = computed(() => this.themeService.allThemes());
 
   /** Currently active theme id — kept in sync with ThemeService */
   readonly activeThemeId = computed(() => this.themeService.activeTheme().id);
@@ -1870,7 +1872,32 @@ export class SettingsPanelComponent implements OnInit, OnDestroy {
   }
 
   importVSCodeTheme(): void {
-    console.log('[Settings] Import VSCode theme — not yet implemented');
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = '.json';
+    input.style.display = 'none';
+    document.body.appendChild(input);
+
+    input.onchange = () => {
+      const file = input.files?.[0];
+      document.body.removeChild(input);
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = () => {
+        const content = reader.result as string;
+        const theme = this.vscodeParser.parse(content, file.name);
+        if (theme) {
+          this.themeService.addImportedTheme(theme);
+          console.log('[Settings] Imported VSCode theme:', theme.name);
+        } else {
+          console.error('[Settings] Failed to parse VSCode theme file');
+        }
+      };
+      reader.readAsText(file);
+    };
+
+    input.click();
   }
 
   chooseBackgroundImage(): void {

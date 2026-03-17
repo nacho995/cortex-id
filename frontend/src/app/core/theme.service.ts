@@ -1,4 +1,4 @@
-import { Injectable, signal, effect, inject, PLATFORM_ID } from '@angular/core';
+import { Injectable, signal, computed, effect, inject, PLATFORM_ID } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 
 // ─── Interfaces ───────────────────────────────────────────────────────────────
@@ -308,6 +308,7 @@ const DEFAULT_BACKGROUND: BackgroundConfig = {
 
 const STORAGE_KEY_THEME = 'cortex-theme';
 const STORAGE_KEY_BG = 'cortex-background';
+const STORAGE_KEY_IMPORTED_THEMES = 'cortex-imported-themes';
 
 // ─── Service ──────────────────────────────────────────────────────────────────
 
@@ -317,6 +318,12 @@ export class ThemeService {
 
   /** Currently active theme */
   readonly activeTheme = signal<CortexTheme>(THEMES[0]);
+
+  /** Imported themes (persisted to localStorage) */
+  readonly importedThemes = signal<CortexTheme[]>([]);
+
+  /** All available themes: built-in + imported */
+  readonly allThemes = computed(() => [...THEMES, ...this.importedThemes()]);
 
   /** Background configuration */
   readonly backgroundConfig = signal<BackgroundConfig>(DEFAULT_BACKGROUND);
@@ -330,11 +337,24 @@ export class ThemeService {
   constructor() {
     if (!isPlatformBrowser(this.platformId)) return;
 
+    // Load persisted imported themes first (so setTheme can find them)
+    const savedImported = localStorage.getItem(STORAGE_KEY_IMPORTED_THEMES);
+    if (savedImported) {
+      try {
+        const imported = JSON.parse(savedImported) as CortexTheme[];
+        if (Array.isArray(imported)) {
+          this.importedThemes.set(imported);
+        }
+      } catch {
+        // ignore malformed JSON
+      }
+    }
+
     // Load persisted theme
     const savedThemeId = localStorage.getItem(STORAGE_KEY_THEME);
     const monokaiTheme = THEMES.find((t) => t.id === 'cortex-monokai') ?? THEMES[0];
     const initialTheme = savedThemeId
-      ? (THEMES.find((t) => t.id === savedThemeId) ?? monokaiTheme)
+      ? (this.allThemes().find((t) => t.id === savedThemeId) ?? monokaiTheme)
       : monokaiTheme;
 
     // Load persisted background
@@ -362,9 +382,9 @@ export class ThemeService {
 
   // ── Public API ──────────────────────────────────────────────────────────────
 
-  /** Switch to a theme by id. Falls back to cortex-dark if not found. */
+  /** Switch to a theme by id. Searches built-in and imported themes. Falls back to cortex-dark if not found. */
   setTheme(themeId: string): void {
-    const theme = THEMES.find((t) => t.id === themeId) ?? THEMES[0];
+    const theme = this.allThemes().find((t) => t.id === themeId) ?? THEMES[0];
     this.activeTheme.set(theme);
     // applyTheme is called reactively via effect, but we also call it here
     // to ensure synchronous application before the next CD cycle.
@@ -374,6 +394,29 @@ export class ThemeService {
     } else {
       this.pendingMonacoTheme = theme;
     }
+  }
+
+  /**
+   * Add an imported theme, persist it to localStorage, and auto-switch to it.
+   * If a theme with the same id already exists, it will be replaced.
+   */
+  addImportedTheme(theme: CortexTheme): void {
+    this.importedThemes.update(themes => {
+      const filtered = themes.filter(t => t.id !== theme.id);
+      return [...filtered, theme];
+    });
+    if (isPlatformBrowser(this.platformId)) {
+      const toStore = this.importedThemes().map(t => ({
+        id: t.id,
+        name: t.name,
+        isDark: t.isDark,
+        monacoTheme: t.monacoTheme,
+        colors: t.colors,
+      }));
+      localStorage.setItem(STORAGE_KEY_IMPORTED_THEMES, JSON.stringify(toStore));
+    }
+    // Auto-switch to the newly imported theme
+    this.setTheme(theme.id);
   }
 
   /** Update background configuration and apply to DOM */
