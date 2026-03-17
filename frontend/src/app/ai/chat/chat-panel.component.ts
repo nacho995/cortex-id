@@ -18,10 +18,13 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
 import { WebSocketService } from '../../core/websocket.service';
-import { IpcService } from '../../core/ipc.service';
 import { VoiceService } from '../../core/voice.service';
+import { IpcService } from '../../core/ipc.service';
+import { ToastService } from '../../shared/ui/toast/toast.service';
 import { ChatMessageComponent } from './chat-message.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
+import { TokenBarComponent } from '../tokens/token-bar.component';
+import { TokenMetricsService } from '../tokens/token-metrics.service';
 import {
   WsMessageType,
   type ChatMessagePayload,
@@ -66,7 +69,7 @@ interface ModelGroup {
 @Component({
   selector: 'app-chat-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, ChatMessageComponent, IconComponent],
+  imports: [CommonModule, FormsModule, ChatMessageComponent, IconComponent, TokenBarComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="chat-panel">
@@ -86,6 +89,9 @@ interface ModelGroup {
           <app-icon name="chevron-down" [size]="12" />
         </button>
       </div>
+
+      <!-- Token Metrics Bar -->
+      <app-token-bar />
 
       <!-- Model Dropdown -->
       @if (showModelSelector()) {
@@ -107,8 +113,6 @@ interface ModelGroup {
                 <button
                   class="model-option"
                   [class.active]="activeModelId() === model.id"
-                  [class.disabled]="!model.available"
-                  [disabled]="!model.available"
                   (click)="selectModel(model)"
                 >
                   <span class="model-option-name">{{ model.name }}</span>
@@ -118,7 +122,7 @@ interface ModelGroup {
                     </span>
                   }
                   @if (!model.available) {
-                    <span class="model-configure">Configure key →</span>
+                    <span class="model-configure">No key yet</span>
                   }
                 </button>
               }
@@ -430,7 +434,6 @@ interface ModelGroup {
 
       &:hover:not(.disabled) { background: var(--bg-hover); }
       &.active { background: var(--accent-primary); color: var(--bg-tertiary); border-radius: 0; }
-      &.disabled { opacity: 0.5; cursor: default; }
     }
 
     .model-option-name { flex: 1; }
@@ -864,12 +867,15 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
   @Input() projectFiles: string[] = [];
 
   @Output() applyEdit = new EventEmitter<{ filePath: string; content: string }>();
+  @Output() fileCreated = new EventEmitter<string>(); // emits the full file path
 
   readonly wsService = inject(WebSocketService);
-  private readonly ipc = inject(IpcService);
   private readonly cdr = inject(ChangeDetectorRef);
   private readonly destroy$ = new Subject<void>();
   readonly voiceService = inject(VoiceService);
+  private readonly ipc = inject(IpcService);
+  private readonly toastService = inject(ToastService);
+  private readonly tokenMetrics = inject(TokenMetricsService);
 
   readonly messages = signal<ChatMessage[]>([]);
   readonly isStreaming = signal(false);
@@ -965,6 +971,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
   inputText = '';
   private currentConversationId: string | undefined;
   private shouldScrollToBottom = false;
+  private availabilityInterval: ReturnType<typeof setInterval> | null = null;
 
   ngOnInit(): void {
     this.subscribeToMessages();
@@ -972,9 +979,18 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
     const savedModel = localStorage.getItem('cortex-active-model');
     if (savedModel && this.allModels.some(m => m.id === savedModel)) {
       this.activeModelId.set(savedModel);
+      this.tokenMetrics.setActiveModel(savedModel);
+    } else {
+      // Sync default model to metrics service
+      this.tokenMetrics.setActiveModel(this.activeModelId());
     }
     // Update model availability based on stored keys
     this.updateModelAvailability();
+
+    // Re-check model availability every 5 seconds — catches key saves from Settings panel
+    this.availabilityInterval = setInterval(() => {
+      this.updateModelAvailability();
+    }, 5000);
 
     // Re-sync provider keys after reconnection so backend keeps in-memory keys fresh
     this.wsService.connectionStatus$
@@ -984,6 +1000,11 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
           this.syncProviderKeysToBackend();
         }
       });
+
+    // Also resync on init after WebSocket has time to connect
+    setTimeout(() => {
+      this.syncProviderKeysToBackend();
+    }, 2000);
   }
 
   private getProviderFromModel(modelId: string): 'anthropic' | 'openai' | 'google' | null {
@@ -993,41 +1014,19 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
     return null;
   }
 
-  private async getApiKeyForActiveModel(): Promise<string | undefined> {
+  private getApiKeyForActiveModel(): string | undefined {
     const provider = this.getProviderFromModel(this.activeModelId());
     if (!provider) return undefined;
-
-    // Browser mode: read raw key from localStorage
-    const localKey = localStorage.getItem(`cortex-api-key-${provider}`);
-    if (localKey) return localKey;
-
-    // Electron mode: request the plain key from IPC for message payload fallback.
-    try {
-      const result = await this.ipc.getApiKey({ service: provider });
-      return result.rawKey;
-    } catch {
-      // Ignore keychain read errors and fallback to backend-side key configuration.
-    }
-
-    return undefined;
+    const key = localStorage.getItem(`cortex-api-key-${provider}`);
+    return key || undefined;
   }
 
-  private async updateModelAvailability(): Promise<void> {
+  private updateModelAvailability(): void {
     const providers = ['anthropic', 'openai', 'google'] as const;
     const hasKey: Record<string, boolean> = {};
 
     for (const p of providers) {
-      const localKey = localStorage.getItem(`cortex-api-key-${p}`);
-      if (localKey) {
-        hasKey[p] = true;
-        continue;
-      }
-      try {
-        const keyResult = await this.ipc.getApiKey({ service: p });
-        hasKey[p] = keyResult.exists;
-      } catch {
-        hasKey[p] = false;
-      }
+      hasKey[p] = !!localStorage.getItem(`cortex-api-key-${p}`);
     }
 
     // Update availability on each model
@@ -1052,21 +1051,18 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.cdr.markForCheck();
   }
 
-  private async syncProviderKeysToBackend(): Promise<void> {
+  private syncProviderKeysToBackend(): void {
     const providers = ['anthropic', 'openai', 'google'] as const;
     for (const provider of providers) {
-      try {
-        const keyResult = await this.ipc.getApiKey({ service: provider });
-        if (keyResult.rawKey) {
-          this.wsService.send(
-            this.wsService.createMessage(WsMessageType.API_KEY_SET, {
-              provider,
-              apiKey: keyResult.rawKey,
-            }),
-          );
-        }
-      } catch {
-        // Keep connecting even if one provider fails.
+      const key = localStorage.getItem(`cortex-api-key-${provider}`);
+      if (key) {
+        this.wsService.send(
+          this.wsService.createMessage(WsMessageType.API_KEY_SET, {
+            provider,
+            apiKey: key,
+          }),
+        );
+        console.log(`[ChatPanel] Synced API key for ${provider} to backend`);
       }
     }
   }
@@ -1117,6 +1113,15 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
             const lastAssistant = msgs[msgs.length - 1];
             if (lastAssistant?.role === 'assistant') {
               this.voiceService.speak(lastAssistant.content);
+            }
+          }
+
+          // Agent mode: detect and execute <file> operations
+          if (this.activeMode() === 'agent') {
+            const msgs = this.messages();
+            const lastAssistant = msgs[msgs.length - 1];
+            if (lastAssistant?.role === 'assistant') {
+              this.executeFileOperations(lastAssistant.content);
             }
           }
 
@@ -1174,8 +1179,8 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
           ...msgs,
           {
             id: msg.id,
-            role: 'system',
-            content: `Error: ${msg.payload.message}`,
+            role: 'assistant' as const,
+            content: `❌ **Error:** ${msg.payload.message}`,
             timestamp: msg.timestamp,
           },
         ]);
@@ -1209,14 +1214,46 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
       });
   }
 
-  async sendMessage(): Promise<void> {
+  sendMessage(): void {
     const content = this.inputText.trim();
     if (!content || this.isStreaming()) return;
 
-    /* Resolve API key for the active model */
-    const apiKey = await this.getApiKeyForActiveModel();
+    // Get API key synchronously from localStorage
+    const apiKey = this.getApiKeyForActiveModel();
+    const provider = this.getProviderFromModel(this.activeModelId());
 
-    /* Build message content with mode prefixes */
+    // Add user message to UI immediately
+    const userMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content,
+      timestamp: Date.now(),
+    };
+    this.messages.update(msgs => [...msgs, userMsg]);
+    this.inputText = '';
+    this.isStreaming.set(true);
+    this.shouldScrollToBottom = true;
+
+    // Reset textarea height
+    if (this.inputEl?.nativeElement) {
+      this.inputEl.nativeElement.style.height = 'auto';
+    }
+
+    // Check if key is needed but missing — show error, don't send
+    if (provider && !apiKey) {
+      const errorMsg: ChatMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: `⚠️ No API key configured for **${this.activeModelName()}**.\n\nGo to **⚙ Settings → AI Providers** → paste your API key → click Save.\n\nOr select a different model from the dropdown above.`,
+        timestamp: Date.now(),
+      };
+      this.messages.update(msgs => [...msgs, errorMsg]);
+      this.isStreaming.set(false);
+      this.cdr.markForCheck();
+      return;
+    }
+
+    // Build enriched message content with context
     let messageContent = content;
 
     // INNOVACIÓN A: Rubber Duck Mode prefix
@@ -1231,7 +1268,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
       messageContent = `[EXPLAIN_LEVEL:senior] ${messageContent}`;
     }
 
-    // Add project context info (similar to how Cursor does it)
+    // Add project context info
     if (this.editorContext.projectPath) {
       messageContent += `\n\n[Project: ${this.editorContext.projectPath}]`;
     }
@@ -1257,34 +1294,21 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
       messageContent += `\n\n--- FILE TO EDIT (${this.editorContext.filePath}) ---\n${this.editorContext.fileContent}\n--- END FILE ---\nReturn ONLY the complete modified file in a single code block.`;
     }
 
-    /* Add user message (show original content, not prefixed) */
-    const userMsg: ChatMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content,
-      timestamp: Date.now(),
-    };
-    this.messages.update((msgs) => [...msgs, userMsg]);
-    this.inputText = '';
-    this.shouldScrollToBottom = true;
+    // Track request for token metrics (input text captured before enrichment)
+    this.tokenMetrics.trackRequest(messageContent);
 
-    /* Reset textarea height */
-    if (this.inputEl?.nativeElement) {
-      this.inputEl.nativeElement.style.height = 'auto';
-    }
-
-    /* Send via WebSocket — include model, mode, apiKey AND context */
+    // Send via WebSocket — always include apiKey when available
     const payload: ChatMessagePayload = {
       content: messageContent,
       conversationId: this.currentConversationId,
       model: this.activeModelId(),
       mode: this.activeMode(),
+      apiKey: apiKey || undefined,
       context: {
-        filePath: this.editorContext.filePath,
-        selectedCode: this.editorContext.selectedCode,
-        language: this.editorContext.language,
+        filePath: this.editorContext.filePath || undefined,
+        selectedCode: this.editorContext.selectedCode || undefined,
+        language: this.editorContext.language || undefined,
       },
-      ...(apiKey ? { apiKey } : {}),
     };
 
     this.wsService.send(
@@ -1317,10 +1341,12 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
   }
 
   selectModel(model: ModelOption): void {
-    if (!model.available) return;
+    // Allow selecting any model — key check happens at send time
     this.activeModelId.set(model.id);
     this.showModelSelector.set(false);
     localStorage.setItem('cortex-active-model', model.id);
+    // Keep TokenMetricsService in sync with the active model
+    this.tokenMetrics.setActiveModel(model.id);
   }
 
   setMode(mode: 'ask' | 'agent' | 'edit'): void {
@@ -1446,8 +1472,73 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
     }
   }
 
+  private async executeFileOperations(content: string): Promise<void> {
+    // Parse all <file path="..." action="create|modify|delete"> ... </file> tags
+    const fileRegex =
+      /<file\s+path="([^"]+)"\s+action="(create|modify|delete)">([\s\S]*?)<\/file>/g;
+    let match: RegExpExecArray | null;
+    const operations: { path: string; action: string; content: string }[] = [];
+
+    while ((match = fileRegex.exec(content)) !== null) {
+      operations.push({
+        path: match[1],
+        action: match[2],
+        content: match[3].trim(),
+      });
+    }
+
+    if (operations.length === 0) return;
+
+    // Resolve project path — use editorContext, localStorage fallback, or home dir
+    let projectPath = this.editorContext.projectPath || '';
+    if (!projectPath) {
+      projectPath = localStorage.getItem('cortex.lastProject') || '';
+    }
+    if (!projectPath) {
+      // Last resort: use home directory
+      try {
+        const appInfo = await this.ipc.getAppInfo();
+        projectPath = appInfo.dataPath?.replace('/.cortex-id', '') || '/tmp';
+      } catch {
+        projectPath = '/tmp';
+      }
+    }
+
+    for (const op of operations) {
+      const fullPath = op.path.startsWith('/')
+        ? op.path
+        : `${projectPath}/${op.path}`;
+
+      try {
+        if (op.action === 'create' || op.action === 'modify') {
+          await this.ipc.writeFile({
+            path: fullPath,
+            content: op.content,
+            createIfNotExists: true,
+          });
+
+          this.toastService.success(`${op.action === 'create' ? '📄 Created' : '✏️ Modified'}: ${op.path}`);
+
+          // Notify workbench to open parent folder (if needed) and open the file
+          this.fileCreated.emit(fullPath);
+
+        } else if (op.action === 'delete') {
+          // Delete via IPC
+          await this.ipc.deletePath({ path: fullPath });
+          this.toastService.info(`🗑️ Deleted: ${op.path}`);
+        }
+      } catch (err) {
+        console.error(`[ChatPanel] File op failed: ${op.action} ${op.path}`, err);
+        this.toastService.error(`❌ Failed to ${op.action}: ${op.path}`);
+      }
+    }
+  }
+
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    if (this.availabilityInterval !== null) {
+      clearInterval(this.availabilityInterval);
+    }
   }
 }
