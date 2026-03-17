@@ -248,25 +248,47 @@ export class IpcService {
     return Promise.resolve();
   }
 
-  setApiKey(request: SetApiKeyRequest): Promise<void> {
-    if (this.api) return this.api.setApiKey(request);
-    // Browser mode: save to localStorage (NOT secure, but functional for dev)
-    console.log('[IpcService] Browser mode: saving API key to localStorage');
+  async setApiKey(request: SetApiKeyRequest): Promise<void> {
+    // ALWAYS save to localStorage so the chat panel can read it synchronously
     localStorage.setItem(`cortex-api-key-${request.service}`, request.key);
-    return Promise.resolve();
+    console.log(`[IpcService] API key saved to localStorage for ${request.service}`);
+
+    // In Electron, ALSO save to keytar for secure storage
+    if (this.api) {
+      try {
+        await this.api.setApiKey(request);
+        console.log(`[IpcService] API key also saved to keytar for ${request.service}`);
+      } catch (err) {
+        console.warn(`[IpcService] keytar save failed (key is still in localStorage):`, err);
+      }
+    }
   }
 
-  getApiKey(request: GetApiKeyRequest): Promise<GetApiKeyResponse> {
-    if (this.api) return this.api.getApiKey(request);
-    // Browser mode: read from localStorage
-    const key = localStorage.getItem(`cortex-api-key-${request.service}`);
-    if (key) {
-      const masked = key.length > 11
-        ? key.slice(0, 7) + '…' + key.slice(-4)
+  async getApiKey(request: GetApiKeyRequest): Promise<GetApiKeyResponse> {
+    // Check localStorage first (always available, both modes)
+    const localKey = localStorage.getItem(`cortex-api-key-${request.service}`);
+    if (localKey) {
+      const masked = localKey.length > 11
+        ? localKey.slice(0, 7) + '…' + localKey.slice(-4)
         : '***';
-      return Promise.resolve({ service: request.service, exists: true, maskedKey: masked, rawKey: key });
+      return { service: request.service, exists: true, maskedKey: masked, rawKey: localKey };
     }
-    return Promise.resolve({ service: request.service, exists: false });
+
+    // Fallback to keytar in Electron (might have keys from before this fix)
+    if (this.api) {
+      try {
+        const result = await this.api.getApiKey(request);
+        // If keytar has a key, sync it to localStorage for future reads
+        if (result.exists && result.rawKey) {
+          localStorage.setItem(`cortex-api-key-${request.service}`, result.rawKey);
+        }
+        return result;
+      } catch (err) {
+        console.warn('[IpcService] keytar read failed:', err);
+      }
+    }
+
+    return { service: request.service, exists: false };
   }
 
   getRecentProjects(): Promise<RecentProject[]> {

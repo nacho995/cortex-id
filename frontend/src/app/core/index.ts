@@ -8,3 +8,5 @@ export { THEMES } from './theme.service';
 export { VoiceService } from './voice.service';
 export { ExtensionsService } from './extensions.service';
 export type { VSXExtension } from './extensions.service';
+export { LayoutService } from './layout.service';
+export type { LayoutMode } from './layout.service';

@@ -156,7 +156,8 @@ export class WebSocketService implements OnDestroy {
   private sendSavedApiKeys(): void {
     const providers = ['anthropic', 'openai', 'google'];
     providers.forEach(provider => {
-      const key = localStorage.getItem(`cortex.apikey.${provider}`);
+      // Use the canonical key format: cortex-api-key-{provider}
+      const key = localStorage.getItem(`cortex-api-key-${provider}`);
       if (key) {
         setTimeout(() => {
           this.send(this.createMessage(WsMessageType.API_KEY_SET, {

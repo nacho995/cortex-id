@@ -11,6 +11,7 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
  * @param model          Model override (e.g. 'claude-3-5-sonnet-20241022')
  * @param conversationId Conversation thread identifier (null = new conversation)
  * @param apiKey         Optional API key override from the frontend
+ * @param mode           Interaction mode: "ask" | "agent" | "edit"
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record ChatMessagePayload(
@@ -18,5 +19,6 @@ public record ChatMessagePayload(
     ChatContext context,
     String model,
     String conversationId,
-    String apiKey
+    String apiKey,
+    String mode  // "ask", "agent", "edit"
 ) {}

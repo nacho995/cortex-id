@@ -175,6 +175,63 @@ import type { ChatMessage } from './chat-panel.component';
           color: var(--text-secondary);
           margin: 8px 0;
         }
+
+        .file-op-block {
+          border-radius: var(--radius-md);
+          border: 1px solid var(--border-color);
+          margin: 10px 0;
+          overflow: hidden;
+          font-family: var(--font-mono);
+
+          &.file-op-create { border-left: 3px solid var(--accent-success, #27ae60); }
+          &.file-op-modify { border-left: 3px solid var(--accent-primary); }
+          &.file-op-delete { border-left: 3px solid var(--accent-error, #e74c3c); }
+        }
+
+        .file-op-header {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          padding: 6px 10px;
+          background: var(--bg-surface);
+          border-bottom: 1px solid var(--border-color);
+          font-size: 12px;
+        }
+
+        .file-op-icon { font-size: 13px; }
+
+        .file-op-label {
+          font-weight: 600;
+          color: var(--text-secondary);
+          text-transform: uppercase;
+          font-size: 10px;
+          letter-spacing: 0.05em;
+        }
+
+        .file-op-path {
+          font-family: var(--font-mono);
+          font-size: 11px;
+          color: var(--accent-secondary, #00FF88);
+          background: transparent;
+          padding: 0;
+        }
+
+        .file-op-code {
+          margin: 0;
+          padding: 10px 12px;
+          background: var(--bg-tertiary);
+          border-radius: 0;
+          border: none;
+          max-height: 300px;
+          overflow-y: auto;
+
+          code {
+            background: transparent;
+            padding: 0;
+            color: var(--text-primary);
+            font-size: 12px;
+          }
+        }
       }
     }
   `],
@@ -192,8 +249,50 @@ export class ChatMessageComponent {
   }
 
   renderContent(content: string): string {
+    // Agent mode: replace <file> tags with styled blocks BEFORE escaping HTML
+    const FILE_PLACEHOLDER_PREFIX = '\x00FILE_BLOCK_';
+    const filePlaceholders: string[] = [];
+    const fileRegex =
+      /<file\s+path="([^"]+)"\s+action="(create|modify|delete)">([\s\S]*?)<\/file>/g;
+
+    const preprocessed = content.replace(
+      fileRegex,
+      (_match, path: string, action: string, code: string) => {
+        const icon =
+          action === 'create' ? '📄' : action === 'modify' ? '✏️' : '🗑️';
+        const label = action.charAt(0).toUpperCase() + action.slice(1);
+        const escapedPath = path
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        const escapedCode = code
+          .trim()
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;');
+        const block =
+          `<div class="file-op-block file-op-${action}">` +
+          `<div class="file-op-header"><span class="file-op-icon">${icon}</span>` +
+          `<span class="file-op-label">${label}</span>` +
+          `<code class="file-op-path">${escapedPath}</code></div>` +
+          `<pre class="file-op-code"><code>${escapedCode}</code></pre>` +
+          `</div>`;
+        const idx = filePlaceholders.push(block) - 1;
+        return `${FILE_PLACEHOLDER_PREFIX}${idx}\x00`;
+      }
+    );
+
     // Basic markdown rendering
-    let html = this.escapeHtml(content);
+    let html = this.escapeHtml(preprocessed);
+
+    // Restore file block placeholders (they were escaped — unescape the markers)
+    html = html.replace(
+      new RegExp(
+        this.escapeHtml(FILE_PLACEHOLDER_PREFIX) + '(\\d+)' + this.escapeHtml('\x00'),
+        'g'
+      ),
+      (_m, idx) => filePlaceholders[Number(idx)] ?? ''
+    );
 
     // Code blocks (``` ... ```)
     html = html.replace(

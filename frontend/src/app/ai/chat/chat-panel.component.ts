@@ -25,6 +25,10 @@ import { ChatMessageComponent } from './chat-message.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { TokenBarComponent } from '../tokens/token-bar.component';
 import { TokenMetricsService } from '../tokens/token-metrics.service';
+import { AgentFlowService } from '../agents/agent-flow.service';
+import { OrchestratorService } from '../orchestrator/orchestrator.service';
+import { OrchestratorPlanComponent } from '../orchestrator/orchestrator-plan.component';
+import { AgentMindMapComponent } from '../mind-map/agent-mind-map.component';
 import {
   WsMessageType,
   type ChatMessagePayload,
@@ -69,7 +73,7 @@ interface ModelGroup {
 @Component({
   selector: 'app-chat-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, ChatMessageComponent, IconComponent, TokenBarComponent],
+  imports: [CommonModule, FormsModule, ChatMessageComponent, IconComponent, TokenBarComponent, OrchestratorPlanComponent, AgentMindMapComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="chat-panel">
@@ -154,6 +158,11 @@ interface ModelGroup {
         </div>
       }
 
+      <!-- Orchestrator Plan (Feature 4) — shown above messages when active -->
+      @if (orchestrator.hasPlan()) {
+        <app-orchestrator-plan />
+      }
+
       <!-- Messages -->
       <div #messagesContainer class="messages-container">
         @if (messages().length === 0) {
@@ -186,9 +195,29 @@ interface ModelGroup {
               <span></span>
               <span></span>
             </div>
+            <!-- Feature 6: Streaming token counter -->
+            @if (streamingTokenEstimate() > 0) {
+              <span class="streaming-token-count">
+                ~{{ streamingTokenEstimate() | number }} tokens
+              </span>
+            }
+          </div>
+        }
+
+        <!-- Feature 3: View Agent Map button — shown after task completion -->
+        @if (showMindMapButton()) {
+          <div class="mind-map-cta">
+            <button class="mind-map-btn" (click)="showMindMap.set(true)">
+              🗺️ View Agent Map
+            </button>
           </div>
         }
       </div>
+
+      <!-- Feature 3: Agent Mind Map Modal -->
+      @if (showMindMap()) {
+        <app-agent-mind-map (closed)="showMindMap.set(false)" />
+      }
 
       <!-- Input area -->
       <div class="chat-input-area">
@@ -577,6 +606,9 @@ interface ModelGroup {
     /* Streaming indicator */
     .streaming-indicator {
       padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
 
     .typing-dots {
@@ -599,6 +631,45 @@ interface ModelGroup {
     @keyframes typingBounce {
       0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
       30% { transform: translateY(-6px); opacity: 1; }
+    }
+
+    /* Feature 6: Streaming token counter */
+    .streaming-token-count {
+      font-size: 10px;
+      font-family: var(--font-mono, monospace);
+      color: var(--accent-primary);
+      opacity: 0.8;
+      animation: tokenFadeIn 0.3s ease;
+    }
+
+    @keyframes tokenFadeIn {
+      from { opacity: 0; }
+      to { opacity: 0.8; }
+    }
+
+    /* Feature 3: Mind map CTA */
+    .mind-map-cta {
+      padding: 8px 16px;
+      display: flex;
+      justify-content: center;
+    }
+
+    .mind-map-btn {
+      padding: 6px 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--accent-primary);
+      border-radius: var(--radius-md, 6px);
+      color: var(--accent-primary);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.15s ease, color 0.15s ease;
+      animation: slideInUp 0.2s ease;
+
+      &:hover {
+        background: var(--accent-primary);
+        color: var(--bg-tertiary);
+      }
     }
 
     /* Input area */
@@ -876,10 +947,22 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
   private readonly ipc = inject(IpcService);
   private readonly toastService = inject(ToastService);
   private readonly tokenMetrics = inject(TokenMetricsService);
+  readonly orchestrator = inject(OrchestratorService);
+  private readonly agentFlow = inject(AgentFlowService);
 
   readonly messages = signal<ChatMessage[]>([]);
   readonly isStreaming = signal(false);
   readonly activeAgents = signal<AgentStatus[]>([]);
+
+  // Feature 3: Mind map modal
+  readonly showMindMap = signal(false);
+  readonly showMindMapButton = computed(() =>
+    !this.isStreaming() && this.agentFlow.nodes().length > 0
+  );
+
+  // Feature 6: Streaming token counter
+  private streamingCharsCount = 0;
+  readonly streamingTokenEstimate = signal(0);
 
   // Model selector
   readonly showModelSelector = signal(false);
@@ -1076,6 +1159,10 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
         const chunk = msg.payload;
         this.currentConversationId = chunk.conversationId;
 
+        // Feature 6: Update streaming token estimate (~4 chars per token)
+        this.streamingCharsCount += chunk.content.length;
+        this.streamingTokenEstimate.set(Math.ceil(this.streamingCharsCount / 4));
+
         this.messages.update((msgs) => {
           const lastMsg = msgs[msgs.length - 1];
           if (lastMsg?.isStreaming) {
@@ -1098,6 +1185,9 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
         });
 
         if (chunk.done) {
+          // Reset streaming token counter when done
+          this.streamingTokenEstimate.set(0);
+          this.streamingCharsCount = 0;
           this.messages.update((msgs) => {
             const lastMsg = msgs[msgs.length - 1];
             if (lastMsg?.isStreaming) {
@@ -1233,6 +1323,16 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.inputText = '';
     this.isStreaming.set(true);
     this.shouldScrollToBottom = true;
+
+    // Feature 2 & 4: Start mock agent flow + orchestrator plan in agent mode
+    if (this.activeMode() === 'agent') {
+      this.agentFlow.startMockFlow();
+      this.orchestrator.startMockPlan(content);
+    }
+
+    // Feature 6: Reset streaming token counter
+    this.streamingCharsCount = 0;
+    this.streamingTokenEstimate.set(0);
 
     // Reset textarea height
     if (this.inputEl?.nativeElement) {

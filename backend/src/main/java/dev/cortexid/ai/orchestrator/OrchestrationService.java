@@ -202,27 +202,106 @@ public class OrchestrationService {
 
     /**
      * Build a context-aware system prompt from the incoming payload.
-     * Extracts mode flags ([RUBBER_DUCK_MODE], [EXPLAIN_LEVEL:*]) and project
-     * context so the AI knows exactly what it has access to.
+     * Includes mode-specific instructions (ask / agent / edit) so the AI
+     * knows exactly what operations it is allowed to perform and how to
+     * format its output for the frontend to parse and execute.
      */
     private String buildSystemPrompt(ChatMessagePayload payload) {
         StringBuilder prompt = new StringBuilder();
 
+        // ── Base prompt ──────────────────────────────────────────────────────────
         prompt.append("""
-            You are Cortex-ID, an AI coding assistant integrated directly into the developer's IDE.
-            You have FULL ACCESS to the developer's project. You CAN see their files, code, and project structure.
-
-            IMPORTANT: You are NOT a generic chatbot. You are embedded in the IDE and you CAN:
-            - See the currently open file and its content
-            - Know the project structure and file paths
-            - Read the code the user is working on
-            - Suggest specific changes with exact line references
-
-            Be concise, precise, and helpful. Use proper markdown code blocks with language identifiers.
-            When suggesting changes, be specific about file names and line numbers.
+            You are Cortex-ID, an AI coding assistant embedded directly in the developer's IDE.
+            You have FULL ACCESS to the developer's project files. You CAN see and modify their code.
+            
+            IMPORTANT RULES:
+            - Be concise and precise. No unnecessary preamble.
+            - Use proper markdown code blocks with language identifiers.
+            - When referencing code, mention exact file names and line numbers.
+            - Respond in the same language the user writes in.
             """);
 
-        // Add project context if available
+        // ── Mode-specific instructions ───────────────────────────────────────────
+        String content = payload.content() != null ? payload.content() : "";
+        String mode = payload.mode() != null ? payload.mode() : "ask";
+
+        switch (mode) {
+            case "agent" -> prompt.append("""
+                
+                MODE: AGENT — You are an autonomous coding agent. You CAN create, modify, and delete files.
+                
+                When you need to create or modify a file, use this EXACT format:
+                
+                <file path="relative/path/to/file.ext" action="create">
+                file content here
+                </file>
+                
+                <file path="relative/path/to/file.ext" action="modify">
+                complete new file content here
+                </file>
+                
+                <file path="relative/path/to/file.ext" action="delete">
+                </file>
+                
+                RULES FOR AGENT MODE:
+                - ALWAYS use <file> tags when creating or modifying files. This is how the IDE executes your changes.
+                - Include the COMPLETE file content inside the tags, not just the changed parts.
+                - Use relative paths from the project root.
+                - You can create multiple files in one response.
+                - After file operations, briefly explain what you did and why.
+                - If the user asks you to "create", "make", "generate", "write", "add" a file — USE <file> TAGS.
+                - Do NOT just show code in a regular code block and tell the user to create it manually.
+                """);
+
+            case "edit" -> prompt.append("""
+                
+                MODE: EDIT — You are editing the currently open file directly.
+                
+                Return ONLY the complete modified file content in a single code block.
+                Do NOT include explanations before the code block.
+                Do NOT include the file path or language label in your response.
+                Just output the modified code, then a brief explanation after.
+                
+                The IDE will apply your code directly to the open editor.
+                """);
+
+            case "ask" -> prompt.append("""
+                
+                MODE: ASK — Answer questions about code. Explain, analyze, suggest.
+                Do NOT modify any files. Only provide explanations and suggestions.
+                If the user asks you to create a file, tell them to switch to Agent mode.
+                """);
+
+            default -> {} // No extra instructions for unknown modes
+        }
+
+        // ── Rubber Duck mode ─────────────────────────────────────────────────────
+        if (content.contains("[RUBBER_DUCK_MODE]")) {
+            prompt.append("""
+                
+                RUBBER DUCK MODE ACTIVE: Do NOT give the answer directly.
+                Ask Socratic questions. Guide the developer to discover the solution themselves.
+                Start with "What have you tried so far?" and guide from there.
+                Only reveal the solution after 5+ messages if the user is truly stuck.
+                """);
+        }
+
+        // ── Explain level ────────────────────────────────────────────────────────
+        if (content.contains("[EXPLAIN_LEVEL:junior]")) {
+            prompt.append("""
+                
+                EXPLAIN LEVEL: JUNIOR — Use simple language, analogies, step-by-step.
+                Avoid jargon. Define any technical terms you use.
+                """);
+        } else if (content.contains("[EXPLAIN_LEVEL:senior]")) {
+            prompt.append("""
+                
+                EXPLAIN LEVEL: SENIOR — Use precise technical terminology.
+                Discuss trade-offs, performance, patterns, edge cases. Be terse.
+                """);
+        }
+
+        // ── File context ─────────────────────────────────────────────────────────
         ChatContext ctx = payload.context();
         if (ctx != null) {
             if (ctx.filePath() != null && !ctx.filePath().isBlank()) {
@@ -233,43 +312,10 @@ public class OrchestrationService {
             }
         }
 
-        // Add mode-specific instructions based on flags in the message content
-        String content = payload.content() != null ? payload.content() : "";
-
-        if (content.contains("[RUBBER_DUCK_MODE]")) {
-            prompt.append("""
-
-                RUBBER DUCK MODE ACTIVE: Do NOT give the solution directly.
-                Instead, ask Socratic questions that guide the developer to find the answer themselves.
-                Start with "What have you tried so far?" then guide with hints.
-                Only reveal the solution after 5+ messages if the user is still stuck.
-                """);
-        }
-
-        if (content.contains("[EXPLAIN_LEVEL:junior]")) {
-            prompt.append("""
-
-                EXPLAIN LEVEL: JUNIOR. Explain as if talking to a beginner developer.
-                Use simple language, analogies, and step-by-step explanations.
-                Avoid jargon. If you must use a technical term, define it.
-                """);
-        } else if (content.contains("[EXPLAIN_LEVEL:senior]")) {
-            prompt.append("""
-
-                EXPLAIN LEVEL: SENIOR. Explain at an expert level.
-                Use precise technical terminology. Discuss trade-offs, performance implications,
-                design patterns, and edge cases. Be terse — no hand-holding.
-                """);
-        }
-
-        // Add project path if present in the enriched message
-        try {
-            String projectPath = extractProjectPath(content);
-            if (projectPath != null) {
-                prompt.append("\n\nProject path: ").append(projectPath);
-            }
-        } catch (Exception e) {
-            // Ignore — don't break the prompt if extraction fails
+        // ── Project path ─────────────────────────────────────────────────────────
+        String projectPath = extractProjectPath(content);
+        if (projectPath != null) {
+            prompt.append("\nProject root: ").append(projectPath);
         }
 
         return prompt.toString();

@@ -14,13 +14,16 @@ import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { TooltipDirective } from '../../shared/ui/tooltip/tooltip.directive';
 import { ExtensionsService } from '../../core/extensions.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
+import { AgentFlowService } from '../../ai/agents/agent-flow.service';
+import { AgentFlowComponent } from '../../ai/agents/agent-flow.component';
+import { LayoutService } from '../../core/layout.service';
 
 type SidebarSection = 'explorer' | 'search' | 'git' | 'timeline' | 'extensions';
 
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, FormsModule, FileExplorerComponent, IconComponent, TooltipDirective],
+  imports: [CommonModule, FormsModule, FileExplorerComponent, IconComponent, TooltipDirective, AgentFlowComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="sidebar">
@@ -88,10 +91,15 @@ type SidebarSection = 'explorer' | 'search' | 'git' | 'timeline' | 'extensions';
       <div class="sidebar-panel">
         @switch (activeSection()) {
           @case ('explorer') {
-            <app-file-explorer
-              (fileSelected)="onFileSelected($event)"
-              (folderLoaded)="onFolderLoaded($event)"
-            />
+            <!-- Show AgentFlow when agents are active or in agent layout mode -->
+            @if (agentFlowService.isActive() || layoutService.isAgentMode()) {
+              <app-agent-flow />
+            } @else {
+              <app-file-explorer
+                (fileSelected)="onFileSelected($event)"
+                (folderLoaded)="onFolderLoaded($event)"
+              />
+            }
           }
           @case ('search') {
             <div class="section-placeholder">
@@ -344,6 +352,8 @@ export class SidebarComponent {
 
   readonly activeSection = signal<SidebarSection>('explorer');
   readonly extensionsService = inject(ExtensionsService);
+  readonly agentFlowService = inject(AgentFlowService);
+  readonly layoutService = inject(LayoutService);
   private readonly toastService = inject(ToastService);
 
   extSearchQuery = '';
@@ -391,5 +401,9 @@ export class SidebarComponent {
   async openFolderPath(path: string): Promise<void> {
     this.activeSection.set('explorer');
     await this.fileExplorer?.openFolderPath(path);
+  }
+
+  async refresh(): Promise<void> {
+    await this.fileExplorer?.refresh();
   }
 }

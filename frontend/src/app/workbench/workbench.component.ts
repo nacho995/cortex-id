@@ -21,6 +21,7 @@ import { ConfigService } from '../core/config.service';
 import { ToastService } from '../shared/ui/toast/toast.service';
 import { MoodService } from '../core/mood.service';
 import { ThemeService } from '../core/theme.service';
+import { LayoutService } from '../core/layout.service';
 
 @Component({
   selector: 'app-workbench',
@@ -69,6 +70,16 @@ import { ThemeService } from '../core/theme.service';
 
         <!-- Titlebar actions -->
         <div class="titlebar-actions">
+          <!-- Layout mode toggle -->
+          <button
+            class="titlebar-btn layout-toggle-btn"
+            [appTooltip]="layoutService.isAgentMode() ? 'Switch to Editor Mode' : 'Switch to Agent Mode'"
+            [class.active]="layoutService.isAgentMode()"
+            (click)="layoutService.toggle()"
+            title="{{ layoutService.isAgentMode() ? '💻 Editor Mode' : '🤖 Agent Mode' }}"
+          >
+            {{ layoutService.isAgentMode() ? '🤖' : '💻' }}
+          </button>
           <button
             class="titlebar-btn"
             appTooltip="Toggle AI Panel (Ctrl+Shift+I)"
@@ -177,6 +188,7 @@ import { ThemeService } from '../core/theme.service';
               [editorContext]="currentEditorContext()"
               [projectFiles]="projectFileList()"
               (applyEdit)="onApplyEdit($event)"
+              (fileCreated)="onFileCreated($event)"
             />
           </div>
         }
@@ -724,6 +736,7 @@ export class WorkbenchComponent implements OnInit {
   @ViewChild('sidebarRef') sidebarRef!: SidebarComponent;
 
   readonly ipc = inject(IpcService);
+  readonly layoutService = inject(LayoutService);
   private readonly config = inject(ConfigService);
   private readonly toast = inject(ToastService);
   private readonly moodService = inject(MoodService);
@@ -956,6 +969,24 @@ export class WorkbenchComponent implements OnInit {
     if (this.editorRef?.activeTab()?.path === edit.filePath) {
       this.editorRef.setContent(edit.content);
     }
+  }
+
+  async onFileCreated(filePath: string): Promise<void> {
+    // Extract parent directory from the file path
+    const parentDir = filePath.substring(0, filePath.lastIndexOf('/')) || filePath.substring(0, filePath.lastIndexOf('\\'));
+
+    // If no folder is open in explorer, open the parent directory
+    if (!this.currentProjectPath() && parentDir) {
+      await this.onFolderOpened(parentDir);
+    } else {
+      // Refresh existing explorer
+      await this.sidebarRef?.refresh();
+    }
+
+    // Open the file in the editor
+    setTimeout(async () => {
+      await this.editorRef?.openFilePath(filePath);
+    }, 300); // Small delay to let explorer load first
   }
 
   /* ── Focus Mode methods ─────────────────────────────────────────────────────── */
