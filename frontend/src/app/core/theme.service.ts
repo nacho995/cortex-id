@@ -433,8 +433,8 @@ export class ThemeService {
         this.setBackground({
           type: 'image',
           imageUrl: 'https://images.unsplash.com/photo-1515705576963-95cad62945b6?w=1920&q=80',
-          opacity: 20,
-          blur: 4,
+          opacity: 12,
+          blur: 3,
           position: 'cover',
         });
       }
