@@ -1,5 +1,6 @@
 package dev.cortexid.ai.orchestrator;
 
+import dev.cortexid.ai.AgentActionService;
 import dev.cortexid.ai.AiModelConfig;
 import dev.cortexid.ai.AnthropicClient;
 import dev.cortexid.ai.AnthropicClient.ConversationMessage;
@@ -45,6 +46,7 @@ class OrchestrationServiceTest {
     @Mock private AiModelConfig.Anthropic anthropicConfig;
     @Mock private AiModelConfig.OpenAI openAIConfig;
     @Mock private AiModelConfig.Google googleConfig;
+    @Mock private AgentActionService agentActionService;
     @Mock private WebSocketSession session;
 
     private OrchestrationService orchestrationService;
@@ -53,7 +55,7 @@ class OrchestrationServiceTest {
     void setUp() {
         orchestrationService = new OrchestrationService(
             anthropicClient, openAIClient, googleClient, ollamaClient,
-            conversationRepository, sessionRegistry, aiModelConfig
+            conversationRepository, sessionRegistry, aiModelConfig, agentActionService
         );
         when(session.isOpen()).thenReturn(true);
         when(session.getId()).thenReturn("test-session-id");
@@ -226,7 +228,7 @@ class OrchestrationServiceTest {
         @DisplayName("enriches with file context")
         void enrichesWithContext() throws Exception {
             stubAnthropicComplete();
-            ChatContext ctx = new ChatContext("/src/Main.java", "public class Main {}", "java");
+            ChatContext ctx = new ChatContext("/src/Main.java", "public class Main {}", "java", null);
             ChatMessagePayload payload = msg("Explain", ctx, null, "conv-9", "sk-ant-key");
             orchestrationService.handleChatMessage(session, WsMessage.create(WsMessageTypes.CHAT_MESSAGE, payload));
             Thread.sleep(300);

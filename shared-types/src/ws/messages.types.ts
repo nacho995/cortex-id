@@ -107,6 +107,8 @@ export interface ChatContext {
   selectedCode?: string;
   /** Language identifier of the open file (e.g. 'typescript', 'java'). */
   language?: string;
+  /** Full content of the currently open file. Allows the AI to see the entire file. */
+  fileContent?: string;
 }
 
 /**

@@ -352,6 +352,15 @@ public class OrchestrationService {
             if (ctx.language() != null && !ctx.language().isBlank()) {
                 prompt.append("\nLanguage: ").append(ctx.language());
             }
+            if (ctx.fileContent() != null && !ctx.fileContent().isBlank()) {
+                String fileSnippet = ctx.fileContent();
+                if (fileSnippet.length() > 8000) {
+                    fileSnippet = fileSnippet.substring(0, 8000) + "\n... (truncated)";
+                }
+                prompt.append("\n\nFile content:\n```").append(ctx.language() != null ? ctx.language() : "").append("\n");
+                prompt.append(fileSnippet);
+                prompt.append("\n```");
+            }
         }
 
         // ── Project path ─────────────────────────────────────────────────────────
@@ -474,6 +483,18 @@ public class OrchestrationService {
             String lang = context.language() != null ? context.language() : "";
             enriched.append("\n\n**Selected code:**\n```").append(lang).append("\n")
                 .append(context.selectedCode()).append("\n```");
+        }
+
+        // Include full file content for agent/edit modes
+        if (context.fileContent() != null && !context.fileContent().isBlank()) {
+            // Limit to avoid token overflow (max ~8000 chars)
+            String fileSnippet = context.fileContent();
+            if (fileSnippet.length() > 8000) {
+                fileSnippet = fileSnippet.substring(0, 8000) + "\n... (truncated)";
+            }
+            enriched.append("\n\n--- CURRENT FILE CONTENT (").append(context.filePath()).append(") ---\n");
+            enriched.append(fileSnippet);
+            enriched.append("\n--- END FILE ---");
         }
 
         return enriched.toString();

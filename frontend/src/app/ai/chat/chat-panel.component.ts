@@ -1532,6 +1532,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
         filePath: this.editorContext.filePath || undefined,
         selectedCode: this.editorContext.selectedCode || undefined,
         language: this.editorContext.language || undefined,
+        fileContent: this.editorContext.fileContent || undefined,
       },
     };
 
