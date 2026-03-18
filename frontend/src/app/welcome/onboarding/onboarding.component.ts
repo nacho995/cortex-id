@@ -6,7 +6,6 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { LayoutService } from '../../core/layout.service';
 
 export type LayoutMode = 'agent' | 'editor';
@@ -20,7 +19,7 @@ export type LayoutMode = 'agent' | 'editor';
 @Component({
   selector: 'app-onboarding',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="onboarding-backdrop" role="dialog" aria-modal="true" aria-labelledby="onboarding-title">
@@ -150,7 +149,7 @@ export type LayoutMode = 'agent' | 'editor';
     .cortex-brand {
       font-size: 20px;
       font-weight: 800;
-      background: linear-gradient(90deg, #FF0040, #00FF88, #FF0040);
+      background: linear-gradient(90deg, var(--cortex-red, #FF0040), var(--cortex-green, #00FF88), var(--cortex-red, #FF0040));
       background-size: 200% auto;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -293,10 +292,10 @@ export type LayoutMode = 'agent' | 'editor';
     .start-btn {
       width: 100%;
       padding: 12px;
-      background: linear-gradient(90deg, #FF0040, #00FF88);
+      background: var(--cortex-gradient);
       border: none;
       border-radius: var(--radius-md, 6px);
-      color: white;
+      color: var(--bg-tertiary, #171816);
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;

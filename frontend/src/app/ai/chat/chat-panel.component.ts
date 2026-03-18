@@ -14,7 +14,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { DecimalPipe, TitleCasePipe, UpperCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil } from 'rxjs';
 import { WebSocketService } from '../../core/websocket.service';
@@ -73,7 +73,7 @@ interface ModelGroup {
 @Component({
   selector: 'app-chat-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, ChatMessageComponent, IconComponent, TokenBarComponent, OrchestratorPlanComponent, AgentMindMapComponent],
+  imports: [DecimalPipe, TitleCasePipe, UpperCasePipe, FormsModule, ChatMessageComponent, IconComponent, TokenBarComponent, OrchestratorPlanComponent, AgentMindMapComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="chat-panel">
@@ -301,7 +301,8 @@ interface ModelGroup {
           <button class="voice-btn"
             [class.listening]="voiceService.isListening()"
             (click)="onVoiceClick()"
-            title="Voice input (Alt+V)">
+            title="Voice input (Alt+V)"
+            aria-label="Voice input">
             @if (voiceService.isListening()) {
               <span class="voice-waves"><span></span><span></span><span></span></span>
             } @else { 🎤 }
@@ -311,6 +312,7 @@ interface ModelGroup {
             class="send-btn"
             [disabled]="!inputText.trim() || isStreaming()"
             (click)="sendMessage()"
+            aria-label="Send message"
           >
             @if (isStreaming()) {
               <div class="send-spinner"></div>
@@ -322,7 +324,7 @@ interface ModelGroup {
 
         <div class="input-hint">
           <span>Enter to send · Shift+Enter for new line · {{ activeMode() | titlecase }}</span>
-          <button class="voice-toggle-btn" [class.active]="voiceService.voiceResponseEnabled()" (click)="toggleVoiceResponse()">{{ voiceService.voiceResponseEnabled() ? '🔊' : '🔇' }}</button>
+          <button class="voice-toggle-btn" [class.active]="voiceService.voiceResponseEnabled()" (click)="toggleVoiceResponse()" [attr.aria-label]="voiceService.voiceResponseEnabled() ? 'Disable voice response' : 'Enable voice response'">{{ voiceService.voiceResponseEnabled() ? '🔊' : '🔇' }}</button>
         </div>
       </div>
     </div>
@@ -490,8 +492,8 @@ interface ModelGroup {
       text-transform: uppercase;
       letter-spacing: 0.03em;
 
-      &.badge-premium { background: #9b59b6; color: white; }
-      &.badge-offline { background: #27ae60; color: white; }
+      &.badge-premium { background: var(--accent-purple); color: var(--bg-tertiary); }
+      &.badge-offline { background: var(--accent-success); color: var(--bg-tertiary); }
       &.badge-new { background: var(--accent-primary); color: var(--bg-tertiary); }
     }
 
@@ -842,7 +844,7 @@ interface ModelGroup {
       &:hover { border-color: var(--accent-primary); }
 
       &.listening {
-        border-color: #FF0040;
+        border-color: var(--cortex-red);
         background: rgba(255, 0, 64, 0.1);
         animation: pulseVoice 1.5s ease infinite;
       }
@@ -855,7 +857,7 @@ interface ModelGroup {
 
       span {
         width: 2px;
-        background: #FF0040;
+        background: var(--cortex-red);
         border-radius: 2px;
         animation: waveA .8s ease infinite;
 
@@ -903,10 +905,10 @@ interface ModelGroup {
       justify-content: center;
       width: 32px;
       height: 32px;
-      background: linear-gradient(135deg, #FF0040 0%, #a6e22e 100%);
+      background: var(--cortex-gradient);
       border: none;
       border-radius: var(--radius-md);
-      color: white;
+      color: var(--bg-tertiary);
       cursor: pointer;
       flex-shrink: 0;
       transition: all var(--transition-fast);
@@ -1496,12 +1498,8 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   onVoiceClick(): void {
     if (this.voiceService.isListening()) {
+      // Stop recording; transcript will be read in the onEnd callback.
       this.voiceService.stopListening();
-      const text = this.voiceService.getFinalTranscript();
-      if (text) {
-        this.inputText = text;
-        this.sendMessage();
-      }
     } else {
       const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (!SR) {
@@ -1514,6 +1512,16 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
         this.cdr.markForCheck();
         return;
       }
+      // Register one-shot callback: when recognition ends (manually or naturally),
+      // read the final transcript and send the message.
+      this.voiceService.onEnd = () => {
+        const text = this.voiceService.getFinalTranscript();
+        if (text) {
+          this.inputText = text;
+          this.sendMessage();
+        }
+        this.cdr.markForCheck();
+      };
       this.voiceService.startListening();
     }
   }

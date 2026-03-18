@@ -295,6 +295,37 @@ export const THEMES: CortexTheme[] = [
       syntaxVariable: '#1f2328',
     },
   },
+
+  // ── Cortex Cyberpunk ────────────────────────────────────────────────────────
+  {
+    id: 'cortex-cyberpunk',
+    name: 'Cortex Cyberpunk',
+    isDark: true,
+    monacoTheme: 'vs-dark',
+    colors: {
+      bgPrimary: 'rgba(10, 10, 20, 0.75)',
+      bgSecondary: 'rgba(8, 8, 18, 0.8)',
+      bgTertiary: 'rgba(5, 5, 12, 0.85)',
+      bgSurface: 'rgba(20, 20, 40, 0.7)',
+      bgHover: 'rgba(30, 30, 60, 0.6)',
+      textPrimary: '#e0e0e0',
+      textSecondary: '#a0a0c0',
+      textMuted: '#606080',
+      accentPrimary: '#00ff88',
+      accentSecondary: '#00d4ff',
+      accentSuccess: '#00ff88',
+      accentWarning: '#ffcc00',
+      accentError: '#ff4466',
+      borderColor: 'rgba(0, 255, 136, 0.15)',
+      syntaxKeyword: '#ff6ac1',
+      syntaxString: '#00ff88',
+      syntaxComment: '#606080',
+      syntaxFunction: '#00d4ff',
+      syntaxNumber: '#ffcc00',
+      syntaxType: '#ff9ac1',
+      syntaxVariable: '#e0e0e0',
+    },
+  },
 ];
 
 // ─── Default background config ────────────────────────────────────────────────
@@ -394,6 +425,20 @@ export class ThemeService {
     } else {
       this.pendingMonacoTheme = theme;
     }
+
+    // Auto-set cyberpunk background when selecting cyberpunk theme
+    if (theme.id === 'cortex-cyberpunk') {
+      const currentBg = this.backgroundConfig();
+      if (currentBg.type === 'none') {
+        this.setBackground({
+          type: 'image',
+          imageUrl: 'https://images.unsplash.com/photo-1515705576963-95cad62945b6?w=1920&q=80',
+          opacity: 20,
+          blur: 4,
+          position: 'cover',
+        });
+      }
+    }
   }
 
   /**
@@ -429,19 +474,34 @@ export class ThemeService {
 
   private applyBackgroundToDOM(config: BackgroundConfig): void {
     const body = document.body;
+    const root = document.documentElement.style;
+
     if (config.type === 'image' && config.imageUrl) {
-      body.style.backgroundImage = `url(${config.imageUrl})`;
-      body.style.backgroundSize = 'cover';
-      body.style.backgroundPosition = 'center';
-      body.style.backgroundRepeat = 'no-repeat';
-      body.style.backgroundAttachment = 'fixed';
-      body.classList.add('has-bg-image');
-    } else {
+      // Use CSS custom properties so the ::before pseudo-element in styles.scss
+      // can pick them up for opacity and blur rendering.
+      root.setProperty('--bg-image-url', `url(${config.imageUrl})`);
+      root.setProperty('--bg-opacity', String((config.opacity ?? 20) / 100));
+      root.setProperty('--bg-blur', `${config.blur ?? 4}px`);
+
+      // Clear any direct body background so the pseudo-element shows through
       body.style.backgroundImage = '';
       body.style.backgroundSize = '';
       body.style.backgroundPosition = '';
       body.style.backgroundRepeat = '';
       body.style.backgroundAttachment = '';
+
+      body.classList.add('has-bg-image');
+    } else {
+      root.setProperty('--bg-image-url', 'none');
+      root.setProperty('--bg-opacity', '0');
+      root.setProperty('--bg-blur', '0px');
+
+      body.style.backgroundImage = '';
+      body.style.backgroundSize = '';
+      body.style.backgroundPosition = '';
+      body.style.backgroundRepeat = '';
+      body.style.backgroundAttachment = '';
+
       body.classList.remove('has-bg-image');
     }
   }
@@ -468,6 +528,20 @@ export class ThemeService {
       const win = window as unknown as Record<string, unknown>;
       const monacoObj = win['monaco'] as typeof import('monaco-editor') | undefined;
       if (!monacoObj) return;
+
+      // If this is an extension theme, VsixInstallerService already registered
+      // the full tokenColors with monaco.editor.defineTheme(themeId, ...).
+      // Just activate that theme instead of re-defining with limited rules.
+      if (theme.id.startsWith('ext-')) {
+        try {
+          monacoObj.editor.setTheme(theme.id);
+          console.log('[ThemeService] Activated extension Monaco theme:', theme.id);
+          return;
+        } catch {
+          // Theme not yet registered (e.g., restored from localStorage after restart).
+          // Fall through to define a basic theme below.
+        }
+      }
 
       monacoObj.editor.defineTheme('cortex-custom', {
         base: theme.monacoTheme,

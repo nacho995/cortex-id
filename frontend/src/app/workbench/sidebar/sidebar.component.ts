@@ -7,12 +7,11 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FileExplorerComponent } from './file-explorer.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { TooltipDirective } from '../../shared/ui/tooltip/tooltip.directive';
-import { ExtensionsService } from '../../core/extensions.service';
+import { ExtensionsService, type VSXExtension } from '../../core/extensions.service';
 import { ToastService } from '../../shared/ui/toast/toast.service';
 import { AgentFlowService } from '../../ai/agents/agent-flow.service';
 import { AgentFlowComponent } from '../../ai/agents/agent-flow.component';
@@ -23,7 +22,7 @@ type SidebarSection = 'explorer' | 'search' | 'git' | 'timeline' | 'extensions';
 @Component({
   selector: 'app-sidebar',
   standalone: true,
-  imports: [CommonModule, FormsModule, FileExplorerComponent, IconComponent, TooltipDirective, AgentFlowComponent],
+  imports: [FormsModule, FileExplorerComponent, IconComponent, TooltipDirective, AgentFlowComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="sidebar">
@@ -125,25 +124,51 @@ type SidebarSection = 'explorer' | 'search' | 'git' | 'timeline' | 'extensions';
           }
           @case ('extensions') {
             <div class="extensions-panel">
-              <div class="panel-header"><span>EXTENSIONS</span></div>
-              <div style="padding:8px"><input type="text" class="ext-search" placeholder="Search VS Code extensions..." [(ngModel)]="extSearchQuery" (input)="searchExtensions()" /></div>
-              @if (extensionsService.isSearching()) { <div class="ext-status">Searching Open VSX...</div> }
-              <div style="overflow-y:auto;flex:1">
-                @for (ext of extensionsService.searchResults(); track ext.id) {
-                  <div class="ext-item">
-                    <div class="ext-icon">
-                      @if (ext.iconUrl) {
-                        <img [src]="ext.iconUrl" width="32" height="32" (error)="onExtIconError($event)" loading="lazy" />
-                      } @else {
-                        <span class="ext-icon-fallback">📦</span>
-                      }
+              @if (selectedExt()) {
+                <div class="ext-detail">
+                  <button class="ext-back" (click)="selectedExt.set(null)">← Back</button>
+                  <div class="ext-detail-header">
+                    @if (selectedExt()!.iconUrl) {
+                      <img [src]="selectedExt()!.iconUrl" width="48" height="48" (error)="onExtIconError($event)" />
+                    } @else { <span style="font-size:40px">📦</span> }
+                    <div>
+                      <div class="ext-detail-name">{{ selectedExt()!.displayName }}</div>
+                      <div class="ext-detail-pub">{{ selectedExt()!.publisher }} · v{{ selectedExt()!.version }}</div>
                     </div>
-                    <div class="ext-info"><div class="ext-name">{{ext.displayName}}</div><div class="ext-pub">{{ext.publisher}}</div><div class="ext-desc">{{ext.description}}</div></div>
-                    <button class="ext-btn" [class.installed]="ext.installed" (click)="onExtAction(ext)">{{ext.installed ? '✓ Installed' : 'Install'}}</button>
                   </div>
+                  <p class="ext-detail-desc">{{ selectedExt()!.description }}</p>
+                  <div class="ext-detail-meta">
+                    @if (selectedExt()!.category) { <span class="ext-tag">{{ selectedExt()!.category }}</span> }
+                    <span class="ext-tag">{{ selectedExt()!.id }}</span>
+                  </div>
+                  <button class="ext-btn ext-detail-btn" [class.installed]="selectedExt()!.installed" (click)="onExtAction(selectedExt()!)">
+                    {{ selectedExt()!.installed ? '✓ Installed' : 'Install' }}
+                  </button>
+                </div>
+              } @else {
+                <div class="panel-header"><span>EXTENSIONS</span></div>
+                <div style="padding:8px"><input type="text" class="ext-search" placeholder="Search VS Code extensions..." [(ngModel)]="extSearchQuery" (input)="searchExtensions()" /></div>
+                @if (extensionsService.isSearching()) { <div class="ext-status">Searching Open VSX...</div> }
+                <div style="overflow-y:auto;flex:1">
+                  @for (ext of extensionsService.searchResults(); track ext.id) {
+                    <div class="ext-item" (click)="selectedExt.set(ext)">
+                      <div class="ext-icon">
+                        @if (ext.iconUrl) {
+                          <img [src]="ext.iconUrl" width="32" height="32" (error)="onExtIconError($event)" loading="lazy" />
+                        } @else {
+                          <span class="ext-icon-fallback">📦</span>
+                        }
+                      </div>
+                      <div class="ext-info"><div class="ext-name">{{ext.displayName}}</div><div class="ext-pub">{{ext.publisher}}</div><div class="ext-desc">{{ext.description}}</div></div>
+                      <button class="ext-btn" [class.installed]="ext.installed" (click)="$event.stopPropagation(); onExtAction(ext)">{{ext.installed ? '✓' : 'Install'}}</button>
+                    </div>
+                  }
+                </div>
+                @if (extensionsService.installProgress()) {
+                  <div class="ext-status ext-progress">{{ extensionsService.installProgress() }}</div>
                 }
-              </div>
-              @if (!extSearchQuery) { <div class="ext-status">Search the Open VSX Registry</div> }
+                @if (!extSearchQuery) { <div class="ext-status">Search the Open VSX Registry</div> }
+              }
             </div>
           }
         }
@@ -286,6 +311,12 @@ type SidebarSection = 'explorer' | 'search' | 'git' | 'timeline' | 'extensions';
       color: var(--text-muted);
     }
 
+    .ext-progress {
+      color: var(--accent-primary);
+      padding: 8px 16px;
+      font-style: italic;
+    }
+
     .ext-item {
       display: flex;
       align-items: flex-start;
@@ -342,6 +373,41 @@ type SidebarSection = 'explorer' | 'search' | 'git' | 'timeline' | 'extensions';
       &:hover { background: var(--accent-primary); color: var(--bg-tertiary); }
       &.installed { border-color: var(--accent-success, #00FF88); color: var(--accent-success, #00FF88); }
     }
+
+    .ext-detail {
+      padding: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+      height: 100%;
+    }
+
+    .ext-back {
+      background: none; border: none; color: var(--accent-primary);
+      font-size: 12px; cursor: pointer; text-align: left; padding: 0;
+      &:hover { text-decoration: underline; }
+    }
+
+    .ext-detail-header {
+      display: flex; gap: 12px; align-items: center;
+    }
+
+    .ext-detail-name { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+    .ext-detail-pub { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+    .ext-detail-desc {
+      font-size: 12px; color: var(--text-secondary); line-height: 1.6;
+      white-space: pre-wrap; word-break: break-word;
+    }
+
+    .ext-detail-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+    .ext-tag {
+      padding: 2px 8px; background: var(--bg-surface);
+      border-radius: var(--radius-sm); font-size: 10px; color: var(--text-muted);
+    }
+
+    .ext-detail-btn { width: 100%; padding: 8px; font-size: 13px; font-weight: 600; }
   `],
 })
 export class SidebarComponent {
@@ -356,6 +422,7 @@ export class SidebarComponent {
   readonly layoutService = inject(LayoutService);
   private readonly toastService = inject(ToastService);
 
+  readonly selectedExt = signal<VSXExtension | null>(null);
   extSearchQuery = '';
   private extTimer: any;
 
@@ -376,13 +443,20 @@ export class SidebarComponent {
     this.extTimer = setTimeout(() => this.extensionsService.search(this.extSearchQuery), 300);
   }
 
-  onExtAction(ext: any): void {
+  async onExtAction(ext: any): Promise<void> {
     if (ext.installed) {
       this.extensionsService.uninstall(ext.id);
       this.toastService.info(`Uninstalled ${ext.displayName}`);
     } else {
-      this.extensionsService.install(ext);
-      this.toastService.success(`Installed ${ext.displayName} — theme/grammar support coming soon`);
+      this.toastService.info(`Installing ${ext.displayName}...`);
+      await this.extensionsService.install(ext);
+      // Check if install actually succeeded (ext should now be in installed list)
+      if (this.extensionsService.isInstalled(ext.id)) {
+        const summary = this.extensionsService.getContributionSummary(ext);
+        this.toastService.success(`Installed ${ext.displayName}${summary ? ' — ' + summary : ''}`);
+      } else {
+        this.toastService.error(`Failed to install ${ext.displayName}`);
+      }
     }
   }
 

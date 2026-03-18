@@ -5,7 +5,6 @@ import {
   Output,
   inject,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { IpcService } from '../core/ipc.service';
 import { WebSocketService } from '../core/websocket.service';
@@ -25,7 +24,7 @@ import {
 @Component({
   selector: 'app-welcome-modal',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="welcome-backdrop" (click)="onBackdropClick($event)">
@@ -161,7 +160,7 @@ import {
 
     .cortex-brand {
       font-weight: 800;
-      background: linear-gradient(90deg, #FF0040, #00FF88, #FF0040);
+      background: linear-gradient(90deg, var(--cortex-red, #FF0040), var(--cortex-green, #00FF88), var(--cortex-red, #FF0040));
       background-size: 200% auto;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -216,7 +215,7 @@ import {
     .recommended {
       font-size: 10px;
       font-weight: 700;
-      color: #a6e3a1;
+      color: var(--accent-success, #a6e3a1);
       text-transform: uppercase;
       letter-spacing: 0.05em;
       margin-left: auto;
@@ -264,10 +263,10 @@ import {
       gap: 8px;
       width: 100%;
       padding: 12px;
-      background: linear-gradient(90deg, #FF0040, #00FF88);
+      background: var(--cortex-gradient);
       border: none;
       border-radius: var(--radius-md, 6px);
-      color: white;
+      color: var(--bg-tertiary, #171816);
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
@@ -287,7 +286,7 @@ import {
       width: 14px;
       height: 14px;
       border: 2px solid rgba(255, 255, 255, 0.4);
-      border-top-color: white;
+      border-top-color: var(--text-primary, #f8f8f2);
       border-radius: 50%;
       animation: spin 0.6s linear infinite;
       flex-shrink: 0;

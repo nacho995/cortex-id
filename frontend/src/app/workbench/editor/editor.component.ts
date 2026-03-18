@@ -3,6 +3,7 @@ import {
   ChangeDetectionStrategy,
   ChangeDetectorRef,
   Component,
+  computed,
   ElementRef,
   EventEmitter,
   HostListener,
@@ -12,7 +13,6 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { IpcService } from '../../core/ipc.service';
 import { ConfigService } from '../../core/config.service';
 import { ThemeService } from '../../core/theme.service';
@@ -66,10 +66,48 @@ const LANGUAGE_MAP: Record<string, string> = {
   env: 'ini',
 };
 
+/** Maps file extensions to shell commands that run the file. */
+const RUN_COMMANDS: Record<string, (filePath: string) => string> = {
+  '.py': (f) => `python3 "${f}"`,
+  '.js': (f) => `node "${f}"`,
+  '.ts': (f) => `npx tsx "${f}"`,
+  '.java': (f) => `javac "${f}" && java "${f.replace('.java', '')}"`,
+  '.c': (f) => `gcc "${f}" -o /tmp/a.out && /tmp/a.out`,
+  '.cpp': (f) => `g++ "${f}" -o /tmp/a.out && /tmp/a.out`,
+  '.rs': (f) => `rustc "${f}" -o /tmp/a.out && /tmp/a.out`,
+  '.go': (f) => `go run "${f}"`,
+  '.rb': (f) => `ruby "${f}"`,
+  '.php': (f) => `php "${f}"`,
+  '.sh': (f) => `bash "${f}"`,
+  '.pl': (f) => `perl "${f}"`,
+  '.r': (f) => `Rscript "${f}"`,
+  '.swift': (f) => `swift "${f}"`,
+  '.kt': (f) => `kotlinc "${f}" -include-runtime -d /tmp/out.jar && java -jar /tmp/out.jar`,
+};
+
+/** Human-friendly labels for extensions shown in the Run button. */
+const RUNNER_LABELS: Record<string, string> = {
+  '.py': 'Python',
+  '.js': 'Node',
+  '.ts': 'TypeScript',
+  '.java': 'Java',
+  '.c': 'C',
+  '.cpp': 'C++',
+  '.rs': 'Rust',
+  '.go': 'Go',
+  '.rb': 'Ruby',
+  '.php': 'PHP',
+  '.sh': 'Shell',
+  '.pl': 'Perl',
+  '.r': 'R',
+  '.swift': 'Swift',
+  '.kt': 'Kotlin',
+};
+
 @Component({
   selector: 'app-editor',
   standalone: true,
-  imports: [CommonModule, EditorTabsComponent, IconComponent],
+  imports: [EditorTabsComponent, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="editor-container">
@@ -80,6 +118,20 @@ const LANGUAGE_MAP: Record<string, string> = {
         (tabClicked)="switchTab($event)"
         (tabClosed)="closeTab($event)"
       />
+
+      <!-- Run button toolbar — visible when the active file is runnable -->
+      @if (runnerLabel()) {
+        <div class="run-toolbar">
+          <button
+            class="run-btn"
+            [title]="'Run file (F5)'"
+            (click)="runCurrentFile()"
+          >
+            <app-icon name="play" [size]="12" />
+            Run ({{ runnerLabel() }})
+          </button>
+        </div>
+      }
 
       <!-- Editor area -->
       <div class="editor-area">
@@ -117,6 +169,10 @@ const LANGUAGE_MAP: Record<string, string> = {
               <div class="shortcut">
                 <kbd>Ctrl+Tab</kbd>
                 <span>Next tab</span>
+              </div>
+              <div class="shortcut">
+                <kbd>F5</kbd>
+                <span>Run file</span>
               </div>
             </div>
           </div>
@@ -271,6 +327,45 @@ const LANGUAGE_MAP: Record<string, string> = {
       }
     }
 
+    /* Run toolbar */
+    .run-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding: 0 8px;
+      height: 28px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      flex-shrink: 0;
+    }
+
+    .run-btn {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 3px 12px;
+      background: rgba(166, 226, 46, 0.1);
+      border: 1px solid rgba(166, 226, 46, 0.25);
+      border-radius: var(--radius-sm);
+      color: var(--accent-primary);
+      font-size: 11px;
+      font-weight: 600;
+      font-family: var(--font-sans);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background var(--transition-fast), border-color var(--transition-fast), transform var(--transition-fast);
+
+      &:hover {
+        background: rgba(166, 226, 46, 0.18);
+        border-color: rgba(166, 226, 46, 0.4);
+        transform: translateY(-1px);
+      }
+
+      &:active {
+        transform: translateY(0);
+      }
+    }
+
     /* Status bar */
     .editor-statusbar {
       display: flex;
@@ -278,7 +373,7 @@ const LANGUAGE_MAP: Record<string, string> = {
       gap: 16px;
       height: var(--statusbar-height);
       padding: 0 12px;
-      background: #0d1117;
+      background: var(--bg-tertiary);
       border-top: 1px solid rgba(0, 136, 255, 0.3);
       color: var(--text-muted);
       font-size: 10px;
@@ -309,6 +404,8 @@ export class EditorComponent implements AfterViewInit, OnDestroy {
   @Output() fileSaved = new EventEmitter<void>();
   /** Emitted when user opens a folder from the editor welcome screen. */
   @Output() folderOpened = new EventEmitter<string>();
+  /** Emitted when the user clicks "Run" — carries the shell command to execute. */
+  @Output() runFile = new EventEmitter<string>();
 
   private readonly ipc = inject(IpcService);
   private readonly config = inject(ConfigService);
@@ -317,6 +414,14 @@ export class EditorComponent implements AfterViewInit, OnDestroy {
 
   readonly openTabs = signal<EditorTab[]>([]);
   readonly activeTab = signal<EditorTab | null>(null);
+
+  /** The language label shown in the Run button, or empty string if the file isn't runnable. */
+  readonly runnerLabel = computed(() => {
+    const tab = this.activeTab();
+    if (!tab) return '';
+    const ext = this.fileExtension(tab.path);
+    return RUNNER_LABELS[ext] ?? '';
+  });
 
   private editor: import('monaco-editor').editor.IStandaloneCodeEditor | null = null;
   private monacoLoaded = false;
@@ -416,6 +521,11 @@ export class EditorComponent implements AfterViewInit, OnDestroy {
     this.editor.addCommand(
       monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS,
       () => this.saveCurrentFile()
+    );
+
+    this.editor.addCommand(
+      monaco.KeyCode.F5,
+      () => this.runCurrentFile()
     );
 
     this.cdr.markForCheck();
@@ -583,6 +693,26 @@ export class EditorComponent implements AfterViewInit, OnDestroy {
     if (!this.editor) return '';
     const sel = this.editor.getSelection();
     return sel ? (this.editor.getModel()?.getValueInRange(sel) ?? '') : '';
+  }
+
+  /** Run the currently active file in the terminal. */
+  runCurrentFile(): void {
+    const tab = this.activeTab();
+    if (!tab) return;
+
+    const ext = this.fileExtension(tab.path);
+    const commandFn = RUN_COMMANDS[ext];
+    if (!commandFn) return;
+
+    const command = commandFn(tab.path);
+    this.runFile.emit(command);
+  }
+
+  /** Extract the file extension including the dot (e.g. ".py"). */
+  private fileExtension(filePath: string): string {
+    const name = filePath.split('/').pop() ?? filePath;
+    const dotIdx = name.lastIndexOf('.');
+    return dotIdx !== -1 ? name.substring(dotIdx).toLowerCase() : '';
   }
 
   ngOnDestroy(): void {

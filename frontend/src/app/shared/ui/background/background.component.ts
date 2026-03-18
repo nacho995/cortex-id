@@ -4,7 +4,6 @@ import {
   computed,
   inject,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { ThemeService } from '../../../core/theme.service';
 import type { BackgroundConfig } from '../../../core/theme.service';
 
@@ -23,7 +22,7 @@ import type { BackgroundConfig } from '../../../core/theme.service';
 @Component({
   selector: 'app-background',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (config().type !== 'none') {
@@ -156,7 +155,7 @@ import type { BackgroundConfig } from '../../../core/theme.service';
     .matrix-chars {
       font-family: var(--font-mono);
       font-size: 14px;
-      color: #00ff41;
+      color: var(--cortex-green);
       white-space: pre;
       line-height: 1.4;
       writing-mode: vertical-rl;

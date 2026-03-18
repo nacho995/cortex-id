@@ -91,63 +91,138 @@ body {
   -moz-osx-font-smoothing: grayscale;
 }
 
+/* ── Background image via fixed ::before pseudo-element ─────────────────────── */
 body.has-bg-image {
-  background-color: transparent !important;
+  background-color: #000 !important;
+
+  &::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background-image: var(--bg-image-url, none);
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    filter: blur(var(--bg-blur, 4px));
+    opacity: var(--bg-opacity, 0.2);
+    z-index: -1;
+    pointer-events: none;
+    transform: scale(1.05); // compensate blur edge bleed
+  }
 }
 
-body.has-bg-image app-root,
-body.has-bg-image app-workbench,
-body.has-bg-image .workbench {
-  background: transparent !important;
-}
+/* ── Transparent panels for background visibility ──────────────────────────── */
+body.has-bg-image {
+  app-root,
+  app-workbench,
+  .workbench,
+  .workbench-layout {
+    background: transparent !important;
+  }
 
-body.has-bg-image .workbench-layout {
-  background: transparent !important;
-}
+  /* Titlebar */
+  .titlebar {
+    background: rgba(5, 5, 12, 0.85) !important;
+    backdrop-filter: blur(12px);
+    border-bottom: 1px solid rgba(0, 255, 136, 0.2) !important;
+    box-shadow: 0 1px 20px rgba(0, 255, 136, 0.05);
+  }
 
-body.has-bg-image .titlebar {
-  background: color-mix(in srgb, var(--bg-tertiary) 60%, transparent) !important;
-  backdrop-filter: blur(12px);
-}
+  /* Sidebar */
+  .sidebar-area,
+  .sidebar,
+  .sidebar-content,
+  .file-tree,
+  .explorer-panel,
+  .activity-bar {
+    background: rgba(8, 8, 18, 0.75) !important;
+    backdrop-filter: blur(8px);
+  }
 
-body.has-bg-image .sidebar-area,
-body.has-bg-image .sidebar,
-body.has-bg-image .activity-bar {
-  background: color-mix(in srgb, var(--bg-secondary) 50%, transparent) !important;
-  backdrop-filter: blur(12px);
-}
+  .sidebar-area {
+    border-right: 1px solid rgba(0, 255, 136, 0.1) !important;
+  }
 
-body.has-bg-image .editor-container,
-body.has-bg-image .editor-area {
-  background: color-mix(in srgb, var(--bg-primary) 40%, transparent) !important;
-  backdrop-filter: blur(8px);
-}
+  /* Editor area */
+  .editor-container,
+  .editor-area {
+    background: rgba(10, 10, 20, 0.7) !important;
+  }
 
-body.has-bg-image .monaco-editor,
-body.has-bg-image .monaco-editor .overflow-guard,
-body.has-bg-image .monaco-editor-background {
-  background: transparent !important;
-}
+  /* Monaco editor — fully transparent so background shows through */
+  .monaco-editor,
+  .monaco-editor .overflow-guard,
+  .monaco-editor-background,
+  .monaco-editor .inputarea.ime-input {
+    background: transparent !important;
+  }
 
-body.has-bg-image .welcome-screen {
-  background: transparent !important;
-}
+  .monaco-editor .margin {
+    background: transparent !important;
+  }
 
-body.has-bg-image .panels-container,
-body.has-bg-image .bottom-panel-area {
-  background: color-mix(in srgb, var(--bg-secondary) 55%, transparent) !important;
-  backdrop-filter: blur(12px);
-}
+  .monaco-editor .lines-content {
+    background: transparent !important;
+  }
 
-body.has-bg-image .chat-panel,
-body.has-bg-image .ai-panel-area {
-  background: color-mix(in srgb, var(--bg-secondary) 50%, transparent) !important;
-  backdrop-filter: blur(12px);
-}
+  /* Welcome screen */
+  .welcome-screen {
+    background: transparent !important;
+  }
 
-body.has-bg-image .statusbar {
-  background: color-mix(in srgb, var(--accent-primary) 60%, transparent) !important;
-  backdrop-filter: blur(12px);
+  /* Tabs */
+  .tabs-bar,
+  .editor-tab {
+    background: rgba(8, 8, 18, 0.7) !important;
+    backdrop-filter: blur(4px);
+  }
+
+  .editor-tab.active {
+    background: rgba(15, 15, 30, 0.8) !important;
+  }
+
+  /* Bottom panel / terminal */
+  .panels-container,
+  .bottom-panel-area,
+  .terminal-container,
+  .xterm-viewport {
+    background: rgba(5, 5, 12, 0.8) !important;
+    backdrop-filter: blur(8px);
+  }
+
+  /* AI / chat panel */
+  .chat-panel,
+  .ai-panel-area,
+  .chat-container {
+    background: rgba(8, 8, 18, 0.75) !important;
+    backdrop-filter: blur(8px);
+    border-left: 1px solid rgba(0, 212, 255, 0.15) !important;
+  }
+
+  /* Statusbar */
+  .statusbar {
+    background: rgba(5, 5, 12, 0.85) !important;
+    backdrop-filter: blur(12px);
+    border-top: 1px solid rgba(0, 255, 136, 0.2) !important;
+  }
+
+  /* Settings modal */
+  .settings-modal {
+    background: rgba(8, 8, 18, 0.92) !important;
+    backdrop-filter: blur(16px);
+  }
+
+  /* Neon-tinted scrollbars */
+  ::-webkit-scrollbar-thumb {
+    background: rgba(0, 255, 136, 0.2) !important;
+
+    &:hover {
+      background: rgba(0, 255, 136, 0.4) !important;
+    }
+  }
 }
 
 // ─── Scrollbars ───────────────────────────────────────────────────────────────
@@ -395,78 +470,78 @@ a {
   --editor-letter-spacing: 0px;
 }
 
-/* ── CORTEX-ID BRAND OVERRIDES — botones siempre visibles ── */
+/* ── CORTEX-ID BRAND OVERRIDES — botones siempre visibles (using theme vars) ── */
 :root {
   --cortex-blue: #0088FF;
-  --cortex-fab-bg: #0088FF;
-  --cortex-fab-color: #ffffff;
+  --cortex-fab-bg: var(--cortex-blue);
+  --cortex-fab-color: var(--text-primary);
 }
 
-/* Settings FAB — azul brillante, siempre visible */
+/* Settings FAB — accent color, siempre visible */
 .settings-fab {
-  background: #0088FF !important;
-  color: #ffffff !important;
-  box-shadow: 0 4px 16px rgba(0, 136, 255, 0.5) !important;
+  background: var(--cortex-fab-bg) !important;
+  color: var(--cortex-fab-color) !important;
+  box-shadow: var(--shadow-glow-blue) !important;
 }
 
-/* Chat FAB — azul brillante en el borde derecho */
+/* Chat FAB — accent color en el borde derecho */
 .chat-fab {
-  background: #0088FF !important;
-  color: #ffffff !important;
-  box-shadow: -4px 0 16px rgba(0, 136, 255, 0.5) !important;
+  background: var(--cortex-fab-bg) !important;
+  color: var(--cortex-fab-color) !important;
+  box-shadow: var(--shadow-glow-blue) !important;
 }
 
 /* AI toggle btn dentro del editor */
 .ai-toggle-btn {
-  background: #0088FF !important;
-  color: #ffffff !important;
-  border-color: #0066cc !important;
+  background: var(--cortex-fab-bg) !important;
+  color: var(--cortex-fab-color) !important;
+  border-color: var(--border-focus) !important;
 }
 
 /* Titlebar buttons visibles */
 .titlebar-btn {
-  color: #cfcfc2 !important;
+  color: var(--text-secondary) !important;
   &:hover {
-    background: rgba(255,255,255,0.1) !important;
-    color: #ffffff !important;
+    background: var(--bg-hover) !important;
+    color: var(--text-primary) !important;
   }
   &.active {
-    color: #0088FF !important;
+    color: var(--accent-primary) !important;
   }
 }
 
 /* Statusbar legible */
 .statusbar {
-  background: #0d1117 !important;
-  color: #cfcfc2 !important;
-  border-top: 1px solid #0088FF !important;
+  background: var(--bg-tertiary) !important;
+  color: var(--text-secondary) !important;
+  border-top: 1px solid var(--accent-primary) !important;
 }
 
 .statusbar-btn {
-  color: #cfcfc2 !important;
-  &:hover { color: #ffffff !important; }
+  color: var(--text-secondary) !important;
+  &:hover { color: var(--text-primary) !important; }
 }
 
 /* ── Titlebar buttons — visibles siempre ── */
 .titlebar-actions .titlebar-btn {
-  color: #cfcfc2 !important;
+  color: var(--text-secondary) !important;
   background: rgba(255,255,255,0.05) !important;
   border: 1px solid rgba(255,255,255,0.1) !important;
   width: 32px !important;
   height: 32px !important;
-  border-radius: 6px !important;
+  border-radius: var(--radius-md) !important;
 }
 
 .titlebar-actions .titlebar-btn:hover {
-  background: rgba(255,255,255,0.15) !important;
-  color: #ffffff !important;
-  border-color: rgba(255,255,255,0.2) !important;
+  background: var(--bg-hover) !important;
+  color: var(--text-primary) !important;
+  border-color: var(--border-subtle) !important;
 }
 
 .titlebar-actions .titlebar-btn.active {
-  background: rgba(0,136,255,0.2) !important;
-  color: #0088FF !important;
-  border-color: #0088FF !important;
+  background: rgba(166, 226, 46, 0.12) !important;
+  color: var(--accent-primary) !important;
+  border-color: var(--accent-primary) !important;
 }
 
 /* Forzar SVG visible en titlebar */

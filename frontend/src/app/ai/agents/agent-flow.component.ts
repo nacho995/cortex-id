@@ -4,7 +4,7 @@ import {
   computed,
   inject,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { AgentFlowService, AgentNode, AgentNodeStatus } from './agent-flow.service';
 
 /**
@@ -16,7 +16,7 @@ import { AgentFlowService, AgentNode, AgentNodeStatus } from './agent-flow.servi
 @Component({
   selector: 'app-agent-flow',
   standalone: true,
-  imports: [CommonModule],
+  imports: [DecimalPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="agent-flow">
@@ -195,10 +195,10 @@ import { AgentFlowService, AgentNode, AgentNodeStatus } from './agent-flow.servi
       padding: 1px 5px;
       border-radius: 3px;
 
-      &.badge-thinking { background: rgba(243, 156, 18, 0.2); color: #f39c12; }
-      &.badge-working  { background: rgba(0, 255, 136, 0.15); color: #00FF88; }
-      &.badge-done     { background: rgba(39, 174, 96, 0.15); color: #27ae60; }
-      &.badge-error    { background: rgba(231, 76, 60, 0.15); color: #e74c3c; }
+      &.badge-thinking { background: rgba(243, 156, 18, 0.2); color: var(--accent-warning); }
+      &.badge-working  { background: rgba(0, 255, 136, 0.15); color: var(--cortex-green); }
+      &.badge-done     { background: rgba(39, 174, 96, 0.15); color: var(--accent-success); }
+      &.badge-error    { background: rgba(231, 76, 60, 0.15); color: var(--accent-error); }
       &.badge-idle     { background: var(--bg-hover); color: var(--text-muted); }
     }
 
@@ -258,7 +258,7 @@ import { AgentFlowService, AgentNode, AgentNodeStatus } from './agent-flow.servi
       border-radius: 2px;
 
       &.fill-thinking {
-        background: #f39c12;
+        background: var(--accent-warning);
         width: 40%;
         animation: progressThinking 1.5s ease infinite;
       }
@@ -327,7 +327,7 @@ import { AgentFlowService, AgentNode, AgentNodeStatus } from './agent-flow.servi
       font-size: 10px;
       flex-shrink: 0;
 
-      .summary-done { color: #27ae60; font-weight: 600; }
+      .summary-done { color: var(--accent-success); font-weight: 600; }
       .summary-active { color: var(--accent-primary); font-weight: 600; }
       .summary-total { margin-left: auto; color: var(--text-muted); font-family: var(--font-mono, monospace); }
     }

@@ -5,14 +5,13 @@ import {
   Input,
   Output,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import type { EditorTab } from './editor.component';
 
 @Component({
   selector: 'app-editor-tabs',
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="tabs-bar" role="tablist">

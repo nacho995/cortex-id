@@ -31,7 +31,7 @@ public class AiModelConfig {
 
     public static class Anthropic {
         private String apiUrl = "https://api.anthropic.com/v1";
-        private String apiKey;
+        private volatile String apiKey;
 
         public String getApiUrl() { return apiUrl; }
         public void setApiUrl(String apiUrl) { this.apiUrl = apiUrl; }
@@ -41,7 +41,7 @@ public class AiModelConfig {
 
     public static class OpenAI {
         private String apiUrl = "https://api.openai.com/v1";
-        private String apiKey;
+        private volatile String apiKey;
 
         public String getApiUrl() { return apiUrl; }
         public void setApiUrl(String apiUrl) { this.apiUrl = apiUrl; }
@@ -51,7 +51,7 @@ public class AiModelConfig {
 
     public static class Google {
         private String apiUrl = "https://generativelanguage.googleapis.com/v1beta";
-        private String apiKey;
+        private volatile String apiKey;
 
         public String getApiUrl() { return apiUrl; }
         public void setApiUrl(String apiUrl) { this.apiUrl = apiUrl; }

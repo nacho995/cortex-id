@@ -8,7 +8,6 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
@@ -18,7 +17,7 @@ import { IconComponent } from '../../shared/ui/icon/icon.component';
 @Component({
   selector: 'app-terminal',
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="terminal-wrapper">
@@ -406,6 +405,14 @@ export class TerminalComponent implements AfterViewInit, OnDestroy {
       this.xterm?.write('\r\n\x1b[31mFailed to create terminal session\x1b[0m\r\n');
     } finally {
       this.isCreating.set(false);
+    }
+  }
+
+  /** Send a command string to the terminal, followed by Enter. */
+  sendCommand(command: string): void {
+    const id = this.terminalId();
+    if (id) {
+      this.ipc.sendTerminalInput({ id, data: command + '\n' });
     }
   }
 

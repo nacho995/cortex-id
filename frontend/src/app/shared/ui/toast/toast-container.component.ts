@@ -54,21 +54,21 @@ import { ToastService } from './toast.service';
     }
 
     .toast-success {
-      background: #1a3a2a;
-      color: #a6e3a1;
-      border: 1px solid #2d5a3d;
+      background: color-mix(in srgb, var(--accent-success) 15%, var(--bg-tertiary));
+      color: var(--accent-success);
+      border: 1px solid color-mix(in srgb, var(--accent-success) 30%, var(--bg-tertiary));
     }
 
     .toast-error {
-      background: #3a1a1a;
-      color: #f38ba8;
-      border: 1px solid #5a2d2d;
+      background: color-mix(in srgb, var(--accent-error) 15%, var(--bg-tertiary));
+      color: var(--accent-error);
+      border: 1px solid color-mix(in srgb, var(--accent-error) 30%, var(--bg-tertiary));
     }
 
     .toast-info {
-      background: #1a2a3a;
-      color: #89b4fa;
-      border: 1px solid #2d3d5a;
+      background: color-mix(in srgb, var(--accent-secondary) 15%, var(--bg-tertiary));
+      color: var(--accent-secondary);
+      border: 1px solid color-mix(in srgb, var(--accent-secondary) 30%, var(--bg-tertiary));
     }
 
     .toast-icon {

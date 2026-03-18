@@ -32,15 +32,15 @@ import {
       <div class="splash-content">
         <!-- Animated logo -->
         <div class="logo-text" aria-label="Cortex-ID">
-          <span class="letter" style="--i:0; color: #FF0040">C</span>
-          <span class="letter" style="--i:1; color: #00FF88">O</span>
-          <span class="letter" style="--i:2; color: #FF0040">R</span>
+          <span class="letter" style="--i:0; color: var(--cortex-red, #FF0040)">C</span>
+          <span class="letter" style="--i:1; color: var(--cortex-green, #00FF88)">O</span>
+          <span class="letter" style="--i:2; color: var(--cortex-red, #FF0040)">R</span>
           <span class="letter" style="--i:3">T</span>
           <span class="letter" style="--i:4">E</span>
           <span class="letter" style="--i:5">X</span>
           <span class="letter-dash" style="--i:6">-</span>
-          <span class="letter" style="--i:7; color: #00FF88">I</span>
-          <span class="letter" style="--i:8; color: #FF0040">D</span>
+          <span class="letter" style="--i:7; color: var(--cortex-green, #00FF88)">I</span>
+          <span class="letter" style="--i:8; color: var(--cortex-red, #FF0040)">D</span>
         </div>
 
         <p class="subtitle">AI-Powered IDE</p>
@@ -183,7 +183,7 @@ import {
 
     .progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #FF0040, #00FF88);
+      background: var(--cortex-gradient, linear-gradient(90deg, #FF0040, #00FF88));
       border-radius: 1px;
       transition: width 0.3s ease;
     }

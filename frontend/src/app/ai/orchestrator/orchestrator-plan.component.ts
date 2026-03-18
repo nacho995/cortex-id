@@ -3,7 +3,6 @@ import {
   Component,
   inject,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { OrchestratorService, SubtaskStatus } from './orchestrator.service';
 
 /**
@@ -15,7 +14,7 @@ import { OrchestratorService, SubtaskStatus } from './orchestrator.service';
 @Component({
   selector: 'app-orchestrator-plan',
   standalone: true,
-  imports: [CommonModule],
+  imports: [],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="plan-panel">
@@ -111,7 +110,7 @@ import { OrchestratorService, SubtaskStatus } from './orchestrator.service';
       padding: 1px 6px;
       border-radius: 3px;
       background: rgba(39, 174, 96, 0.15);
-      color: #27ae60;
+      color: var(--accent-success);
       text-transform: uppercase;
     }
 
@@ -129,7 +128,7 @@ import { OrchestratorService, SubtaskStatus } from './orchestrator.service';
       transition: width 0.4s ease;
 
       &.complete {
-        background: #27ae60;
+        background: var(--accent-success);
       }
     }
 
@@ -160,7 +159,7 @@ import { OrchestratorService, SubtaskStatus } from './orchestrator.service';
 
       &.task-error {
         background: rgba(231, 76, 60, 0.04);
-        border-left: 2px solid #e74c3c;
+        border-left: 2px solid var(--accent-error);
       }
     }
 

@@ -8,7 +8,6 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { SidebarComponent } from './sidebar/sidebar.component';
 import { EditorComponent } from './editor/editor.component';
 import { PanelsComponent } from './panels/panels.component';
@@ -22,12 +21,12 @@ import { ToastService } from '../shared/ui/toast/toast.service';
 import { MoodService } from '../core/mood.service';
 import { ThemeService } from '../core/theme.service';
 import { LayoutService } from '../core/layout.service';
+import { ExtensionsService } from '../core/extensions.service';
 
 @Component({
   selector: 'app-workbench',
   standalone: true,
   imports: [
-    CommonModule,
     SidebarComponent,
     EditorComponent,
     PanelsComponent,
@@ -46,16 +45,19 @@ import { LayoutService } from '../core/layout.service';
           <button
             class="window-btn close"
             appTooltip="Close"
+            aria-label="Close window"
             (click)="ipc.closeWindow()"
           ></button>
           <button
             class="window-btn minimize"
             appTooltip="Minimize"
+            aria-label="Minimize window"
             (click)="ipc.minimizeWindow()"
           ></button>
           <button
             class="window-btn maximize"
             appTooltip="Maximize"
+            aria-label="Maximize window"
             (click)="ipc.maximizeWindow()"
           ></button>
         </div>
@@ -140,7 +142,7 @@ import { LayoutService } from '../core/layout.service';
             class="editor-area workbench-editor-area"
             [style.height]="showBottomPanel() ? 'calc(100% - ' + panelHeight() + 'px)' : '100%'"
           >
-            <app-editor #editorRef (fileSaved)="onFileSaved()" (folderOpened)="onFolderOpened($event)" />
+            <app-editor #editorRef (fileSaved)="onFileSaved()" (folderOpened)="onFolderOpened($event)" (runFile)="onRunFile($event)" />
           </div>
 
           <!-- Bottom panel resize handle -->
@@ -167,6 +169,7 @@ import { LayoutService } from '../core/layout.service';
             class="ai-toggle-btn"
             (click)="toggleAiPanel()"
             [title]="showAiPanel() ? 'Close AI Chat (Ctrl+Shift+I)' : 'Open AI Chat (Ctrl+Shift+I)'"
+            [attr.aria-label]="showAiPanel() ? 'Close AI Chat' : 'Open AI Chat'"
           >
             {{ showAiPanel() ? '›' : '💬' }}
           </button>
@@ -265,6 +268,7 @@ import { LayoutService } from '../core/layout.service';
         class="settings-fab"
         (click)="openSettings()"
         title="Settings (Ctrl+,)"
+        aria-label="Open Settings"
       >
         ⚙
       </button>
@@ -274,6 +278,7 @@ import { LayoutService } from '../core/layout.service';
         class="chat-fab"
         (click)="toggleAiPanel()"
         title="{{ showAiPanel() ? 'Close AI Chat' : 'Open AI Chat (Ctrl+Shift+I)' }}"
+        [attr.aria-label]="showAiPanel() ? 'Close AI Chat' : 'Open AI Chat'"
       >
         {{ showAiPanel() ? '›' : '💬' }}
       </button>
@@ -368,7 +373,7 @@ import { LayoutService } from '../core/layout.service';
     }
 
     .cortex-brand {
-      background: linear-gradient(90deg, #FF0040, #00FF88, #66d9ef, #FF0040);
+      background: linear-gradient(90deg, var(--cortex-red), var(--cortex-green), var(--accent-secondary), var(--cortex-red));
       background-size: 300% auto;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
@@ -435,7 +440,7 @@ import { LayoutService } from '../core/layout.service';
       background: rgba(0, 255, 136, 0.1);
       border-bottom: 1px solid rgba(0, 255, 136, 0.2);
       font-size: 12px;
-      color: #00FF88;
+      color: var(--cortex-green);
       flex-shrink: 0;
 
       .focus-icon { font-size: 14px; }
@@ -452,7 +457,7 @@ import { LayoutService } from '../core/layout.service';
 
       .focus-done {
         background: rgba(0, 255, 136, 0.2);
-        color: #00FF88;
+        color: var(--cortex-green);
         &:hover { background: rgba(0, 255, 136, 0.3); }
       }
 
@@ -585,7 +590,7 @@ import { LayoutService } from '../core/layout.service';
       display: flex;
       align-items: center;
       height: var(--statusbar-height);
-      background: #0d1117;
+      background: var(--bg-tertiary);
       border-top: 1px solid rgba(0, 136, 255, 0.4);
       color: var(--text-secondary);
       font-size: 11px;
@@ -665,7 +670,7 @@ import { LayoutService } from '../core/layout.service';
       border-radius: 50%;
       background: rgba(0, 136, 255, 0.9);
       backdrop-filter: blur(12px);
-      color: #ffffff;
+      color: var(--text-primary);
       font-size: 18px;
       border: 1px solid rgba(0, 136, 255, 0.5);
       cursor: pointer;
@@ -697,7 +702,7 @@ import { LayoutService } from '../core/layout.service';
       height: 64px;
       background: rgba(0, 136, 255, 0.85);
       backdrop-filter: blur(12px);
-      color: #ffffff;
+      color: var(--text-primary);
       font-size: 16px;
       font-weight: bold;
       border: 1px solid rgba(0, 136, 255, 0.4);
@@ -808,6 +813,7 @@ import { LayoutService } from '../core/layout.service';
 export class WorkbenchComponent implements OnInit {
   @ViewChild('editorRef') editorRef!: EditorComponent;
   @ViewChild('sidebarRef') sidebarRef!: SidebarComponent;
+  @ViewChild(PanelsComponent) panelsRef!: PanelsComponent;
 
   readonly ipc = inject(IpcService);
   readonly layoutService = inject(LayoutService);
@@ -815,6 +821,7 @@ export class WorkbenchComponent implements OnInit {
   private readonly toast = inject(ToastService);
   private readonly moodService = inject(MoodService);
   private readonly themeService = inject(ThemeService);
+  private readonly extensionsService = inject(ExtensionsService);
 
   /* Layout state */
   readonly showSidebar = signal(true);
@@ -913,6 +920,13 @@ export class WorkbenchComponent implements OnInit {
       return;
     }
 
+    // F5 — Run current file
+    if (event.key === 'F5') {
+      event.preventDefault();
+      this.editorRef?.runCurrentFile();
+      return;
+    }
+
     // Escape — Close settings if open
     if (event.key === 'Escape' && this.showSettings()) {
       this.closeSettings();
@@ -941,6 +955,7 @@ export class WorkbenchComponent implements OnInit {
   ngOnInit(): void {
     this.setupResizeListeners();
     this.moodService.startMonitoring();
+    this.extensionsService.init();
 
     // Restore wallpaper via ThemeService (BackgroundComponent renders it globally)
     const savedWallpaper = localStorage.getItem('cortex.wallpaper.data');
@@ -1033,6 +1048,15 @@ export class WorkbenchComponent implements OnInit {
     this.savedMessageTimer = setTimeout(() => {
       this.savedMessage.set('');
     }, 2000);
+  }
+
+  /** Handle "Run File" from the editor — open the terminal panel and execute the command. */
+  onRunFile(command: string): void {
+    this.showBottomPanel.set(true);
+    // Small delay to ensure the panel is rendered before sending the command
+    setTimeout(() => {
+      this.panelsRef?.sendCommand(command);
+    }, 100);
   }
 
   onPanelMaximize(isMaximized: boolean): void {

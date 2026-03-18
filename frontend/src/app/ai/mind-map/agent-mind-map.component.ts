@@ -7,7 +7,7 @@ import {
   inject,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { AgentFlowService, AgentNode, AgentNodeStatus } from '../agents/agent-flow.service';
 
 interface MindMapNode {
@@ -35,7 +35,7 @@ interface MindMapEdge {
 @Component({
   selector: 'app-agent-mind-map',
   standalone: true,
-  imports: [CommonModule],
+  imports: [DecimalPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="mindmap-backdrop" (click)="onBackdropClick($event)" role="dialog" aria-modal="true" aria-label="Agent Mind Map">
@@ -311,10 +311,10 @@ interface MindMapEdge {
     }
 
     /* Status-specific node colors via CSS classes on the group */
-    .node-status-thinking .node-circle { stroke: #f39c12; }
-    .node-status-working .node-circle { stroke: #00FF88; }
-    .node-status-done .node-circle { stroke: #27ae60; }
-    .node-status-error .node-circle { stroke: #e74c3c; }
+    .node-status-thinking .node-circle { stroke: var(--accent-warning); }
+    .node-status-working .node-circle { stroke: var(--cortex-green); }
+    .node-status-done .node-circle { stroke: var(--accent-success); }
+    .node-status-error .node-circle { stroke: var(--accent-error); }
     .node-status-idle .node-circle { stroke: var(--border-color); }
 
     /* ── Detail panel ────────────────────────────────────────────────────────── */
@@ -354,10 +354,10 @@ interface MindMapEdge {
       padding: 2px 6px;
       border-radius: 3px;
 
-      &.badge-thinking { background: rgba(243, 156, 18, 0.2); color: #f39c12; }
-      &.badge-working  { background: rgba(0, 255, 136, 0.15); color: #00FF88; }
-      &.badge-done     { background: rgba(39, 174, 96, 0.15); color: #27ae60; }
-      &.badge-error    { background: rgba(231, 76, 60, 0.15); color: #e74c3c; }
+      &.badge-thinking { background: rgba(243, 156, 18, 0.2); color: var(--accent-warning); }
+      &.badge-working  { background: rgba(0, 255, 136, 0.15); color: var(--cortex-green); }
+      &.badge-done     { background: rgba(39, 174, 96, 0.15); color: var(--accent-success); }
+      &.badge-error    { background: rgba(231, 76, 60, 0.15); color: var(--accent-error); }
       &.badge-idle     { background: var(--bg-hover); color: var(--text-muted); }
     }
 
@@ -386,10 +386,10 @@ interface MindMapEdge {
       flex-shrink: 0;
 
       .legend-item {
-        &.thinking { color: #f39c12; }
-        &.working  { color: #00FF88; }
-        &.done     { color: #27ae60; }
-        &.error    { color: #e74c3c; }
+        &.thinking { color: var(--accent-warning); }
+        &.working  { color: var(--cortex-green); }
+        &.done     { color: var(--accent-success); }
+        &.error    { color: var(--accent-error); }
       }
 
       .legend-note {

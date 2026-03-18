@@ -3,9 +3,9 @@ import {
   Component,
   EventEmitter,
   Output,
+  ViewChild,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { TerminalComponent } from '../terminal/terminal.component';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 
@@ -26,7 +26,7 @@ const PANEL_TABS: PanelTabConfig[] = [
 @Component({
   selector: 'app-panels',
   standalone: true,
-  imports: [CommonModule, TerminalComponent, IconComponent],
+  imports: [TerminalComponent, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="panels-container">
@@ -170,6 +170,8 @@ const PANEL_TABS: PanelTabConfig[] = [
   `],
 })
 export class PanelsComponent {
+  @ViewChild(TerminalComponent) terminalRef!: TerminalComponent;
+
   @Output() closeRequested = new EventEmitter<void>();
   @Output() maximizeRequested = new EventEmitter<boolean>();
 
@@ -188,5 +190,11 @@ export class PanelsComponent {
   onToggleMaximizeClick(): void {
     this.isMaximized.update((v) => !v);
     this.maximizeRequested.emit(this.isMaximized());
+  }
+
+  /** Switch to the terminal tab and send a command to it. */
+  sendCommand(command: string): void {
+    this.activePanel.set('terminal');
+    this.terminalRef?.sendCommand(command);
   }
 }

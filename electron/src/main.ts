@@ -57,6 +57,23 @@ app.whenReady().then(async () => {
     return allowedPerms.includes(permission);
   });
 
+  // Bypass CORS for Open VSX extension downloads.
+  // The CDN (openvsx.eclipsecontent.org) doesn't set CORS headers,
+  // which blocks fetch() in the renderer process.
+  session.defaultSession.webRequest.onHeadersReceived(
+    { urls: ['https://*.open-vsx.org/*', 'https://*.eclipsecontent.org/*', 'https://open-vsx.org/*'] },
+    (details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Access-Control-Allow-Origin': ['*'],
+          'Access-Control-Allow-Methods': ['GET, OPTIONS'],
+          'Access-Control-Allow-Headers': ['Content-Type'],
+        },
+      });
+    }
+  );
+
   // Load the app
   const frontendEntry = resolveFrontendEntryPath({
     isDev,

@@ -8,8 +8,9 @@ import {
   signal,
   inject,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { DomSanitizer, type SafeHtml } from '@angular/platform-browser';
 import { IpcService } from '../../core/ipc.service';
+import { IconThemeService } from '../../core/icon-theme.service';
 import { FileIconPipe } from './file-icon.pipe';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import { TooltipDirective } from '../../shared/ui/tooltip/tooltip.directive';
@@ -23,7 +24,7 @@ interface TreeNode extends DirectoryEntry {
 @Component({
   selector: 'app-file-explorer',
   standalone: true,
-  imports: [CommonModule, FileIconPipe, IconComponent, TooltipDirective],
+  imports: [FileIconPipe, IconComponent, TooltipDirective],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="file-explorer">
@@ -31,6 +32,20 @@ interface TreeNode extends DirectoryEntry {
       <div class="explorer-header">
         <span class="explorer-title">EXPLORER</span>
         <div class="explorer-actions">
+          <button
+            class="action-btn"
+            appTooltip="New File"
+            (click)="newFileFromToolbar()"
+          >
+            <app-icon name="file" [size]="14" />
+          </button>
+          <button
+            class="action-btn"
+            appTooltip="New Folder"
+            (click)="newFolderFromToolbar()"
+          >
+            <app-icon name="plus" [size]="14" />
+          </button>
           <button
             class="action-btn"
             appTooltip="Open Folder"
@@ -74,6 +89,22 @@ interface TreeNode extends DirectoryEntry {
             <p>Empty folder</p>
           </div>
         } @else {
+          <!-- Inline input for new file/folder -->
+          @if (inlineInput()) {
+            <div class="tree-item inline-input-row" [style.padding-left.px]="16">
+              <span class="expand-arrow-placeholder"></span>
+              <app-icon [name]="inlineInput()!.type === 'folder' ? 'folder' : 'file'" [size]="14" />
+              <input
+                #inlineInputEl
+                class="inline-name-input"
+                type="text"
+                [placeholder]="inlineInput()!.type === 'folder' ? 'folder name...' : 'file name...'"
+                (keydown.enter)="commitInlineInput(inlineInputEl.value)"
+                (keydown.escape)="inlineInput.set(null)"
+                (blur)="commitInlineInput(inlineInputEl.value)"
+              />
+            </div>
+          }
           @for (node of flatTree(); track node.path) {
             <div
               class="tree-item"
@@ -98,14 +129,21 @@ interface TreeNode extends DirectoryEntry {
               }
 
               <!-- File/folder icon -->
-              <span class="item-icon" [class]="node.name | fileIcon: node.isDirectory">
-                @if (node.isDirectory) {
-                  <app-icon
-                    [name]="node.isExpanded ? 'folder-open' : 'folder'"
-                    [size]="14"
-                  />
+              <span class="item-icon" [class]="iconThemeService.activeIconTheme() ? '' : (node.name | fileIcon: node.isDirectory)">
+                @if (iconThemeService.activeIconTheme()) {
+                  <span class="themed-icon"
+                        [innerHTML]="getThemedIcon(node)"
+                        [style.width.px]="14" [style.height.px]="14">
+                  </span>
                 } @else {
-                  <app-icon name="file" [size]="14" />
+                  @if (node.isDirectory) {
+                    <app-icon
+                      [name]="node.isExpanded ? 'folder-open' : 'folder'"
+                      [size]="14"
+                    />
+                  } @else {
+                    <app-icon name="file" [size]="14" />
+                  }
                 }
               </span>
 
@@ -303,6 +341,44 @@ interface TreeNode extends DirectoryEntry {
       .is-selected & {
         color: var(--accent-primary);
       }
+
+      /* File type icon colors */
+      &.icon-ts, &.icon-tsx { color: #3178c6; }
+      &.icon-js, &.icon-jsx { color: #f0db4f; }
+      &.icon-html { color: #e44d26; }
+      &.icon-css, &.icon-scss { color: #264de4; }
+      &.icon-json { color: #a0a0a0; }
+      &.icon-yaml, &.icon-toml { color: #cb171e; }
+      &.icon-md { color: #519aba; }
+      &.icon-python { color: #3572a5; }
+      &.icon-java { color: #b07219; }
+      &.icon-kotlin { color: #a97bff; }
+      &.icon-rust { color: #dea584; }
+      &.icon-go { color: #00add8; }
+      &.icon-c, &.icon-cpp { color: #555555; }
+      &.icon-shell { color: #89e051; }
+      &.icon-git { color: #f05033; }
+      &.icon-docker { color: #2496ed; }
+      &.icon-image, &.icon-svg { color: #a074c4; }
+      &.icon-npm { color: #cb3837; }
+      &.icon-angular { color: #dd0031; }
+      &.icon-gradle { color: #02303a; }
+      &.icon-xml { color: #e37933; }
+      &.icon-env { color: #ecd53f; }
+      &.icon-eslint { color: #4b32c3; }
+      &.icon-txt, &.icon-pdf { color: #999999; }
+    }
+
+    .themed-icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 14px;
+      height: 14px;
+    }
+    .themed-icon ::ng-deep svg {
+      width: 100%;
+      height: 100%;
     }
 
     .item-name {
@@ -389,6 +465,25 @@ interface TreeNode extends DirectoryEntry {
       background: rgba(255, 255, 255, 0.06);
       margin: 4px 0;
     }
+
+    .inline-input-row {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .inline-name-input {
+      flex: 1;
+      background: var(--bg-surface);
+      color: var(--text-primary);
+      border: 1px solid var(--accent-primary);
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-size: 12px;
+      font-family: inherit;
+      outline: none;
+      min-width: 0;
+    }
   `],
 })
 export class FileExplorerComponent implements OnInit, OnDestroy {
@@ -402,6 +497,8 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
   @Output() folderLoaded = new EventEmitter<string>();
 
   private readonly ipc = inject(IpcService);
+  readonly iconThemeService = inject(IconThemeService);
+  private readonly sanitizer = inject(DomSanitizer);
 
   readonly rootPath = signal('');
   readonly isLoading = signal(false);
@@ -410,6 +507,8 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
 
   private readonly treeData = signal<TreeNode[]>([]);
   readonly flatTree = signal<TreeNode[]>([]);
+  /** Inline input for creating new files/folders at the top of the tree */
+  readonly inlineInput = signal<{ type: 'file' | 'folder' } | null>(null);
   private fileWatcherCleanup: (() => void) | null = null;
   private refreshDebounce: ReturnType<typeof setTimeout> | null = null;
 
@@ -418,6 +517,12 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
       const path = this.rootPath();
       return path ? path.split('/').pop() ?? path : '';
     };
+  }
+
+  getThemedIcon(node: TreeNode): SafeHtml {
+    const svg = this.iconThemeService.getFileIcon(node.name, node.isDirectory ?? false, node.isExpanded ?? false);
+    if (svg) return this.sanitizer.bypassSecurityTrustHtml(svg);
+    return this.sanitizer.bypassSecurityTrustHtml('');
   }
 
   ngOnInit(): void {
@@ -467,34 +572,62 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
     const root = this.rootPath();
     if (!root) return;
 
+    // Snapshot expanded paths before reloading, sorted by depth so parents load first
     const expandedPaths = new Set(
-      this.flatTree().filter(n => n.isDirectory && n.isExpanded).map(n => n.path),
+      this.flatTree()
+        .filter(n => n.isDirectory && n.isExpanded)
+        .map(n => n.path),
     );
 
-    await this.loadDirectory(root);
+    // Rebuild the entire flat tree from scratch
+    const newFlat: TreeNode[] = [];
+    await this.buildFlatTree(root, 0, expandedPaths, newFlat);
 
-    for (const dirPath of expandedPaths) {
-      const flat = this.flatTree();
-      const node = flat.find(n => n.path === dirPath);
-      if (node && node.isDirectory) {
-        node.isExpanded = true;
-        await this.loadDirectory(node.path, node);
+    this.treeData.set(newFlat.filter(n => n.level === 0));
+    this.flatTree.set(newFlat);
+  }
+
+  /**
+   * Recursively builds a flat tree array by listing each directory level.
+   * Directories that were previously expanded are re-expanded automatically.
+   */
+  private async buildFlatTree(
+    dirPath: string,
+    level: number,
+    expandedPaths: Set<string>,
+    out: TreeNode[],
+  ): Promise<void> {
+    const response = await this.ipc.listDirectory({ path: dirPath, recursive: false });
+
+    const nodes: TreeNode[] = response.entries
+      .sort((a, b) => {
+        if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      })
+      .map((entry) => ({
+        ...entry,
+        level,
+        isExpanded: entry.isDirectory && expandedPaths.has(entry.path),
+        children: undefined,
+      }));
+
+    for (const node of nodes) {
+      out.push(node);
+      if (node.isDirectory && node.isExpanded) {
+        await this.buildFlatTree(node.path, level + 1, expandedPaths, out);
       }
     }
   }
 
-  private async loadDirectory(path: string, parentNode?: TreeNode): Promise<void> {
+  private async loadDirectory(dirPath: string, parentNode?: TreeNode): Promise<void> {
     this.isLoading.set(true);
     try {
-      const response = await this.ipc.listDirectory({ path, recursive: false });
+      const response = await this.ipc.listDirectory({ path: dirPath, recursive: false });
       const level = parentNode ? parentNode.level + 1 : 0;
 
       const nodes: TreeNode[] = response.entries
         .sort((a, b) => {
-          /* Directories first, then files */
-          if (a.isDirectory !== b.isDirectory) {
-            return a.isDirectory ? -1 : 1;
-          }
+          if (a.isDirectory !== b.isDirectory) return a.isDirectory ? -1 : 1;
           return a.name.localeCompare(b.name);
         })
         .map((entry) => ({
@@ -506,22 +639,28 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
 
       if (!parentNode) {
         this.treeData.set(nodes);
+        this.flatTree.set(nodes);
       } else {
-        /* Insert children after parent in flat tree */
+        /* Insert children after parent, removing old children at deeper levels */
         const flat = this.flatTree();
         const parentIdx = flat.findIndex((n) => n.path === parentNode.path);
         if (parentIdx !== -1) {
+          // Find where this parent's children end
+          let endIdx = parentIdx + 1;
+          while (endIdx < flat.length && flat[endIdx].level > parentNode.level) {
+            endIdx++;
+          }
           const newFlat = [
             ...flat.slice(0, parentIdx + 1),
             ...nodes,
-            ...flat.slice(parentIdx + 1).filter((n) => n.level <= parentNode.level),
+            ...flat.slice(endIdx),
           ];
           this.flatTree.set(newFlat);
-          return;
+        } else {
+          // Parent not found — append to end (shouldn't happen)
+          this.flatTree.set([...this.flatTree(), ...nodes]);
         }
       }
-
-      this.flatTree.set(nodes);
     } catch (err) {
       console.error('[FileExplorer] Failed to load directory:', err);
     } finally {
@@ -533,25 +672,29 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
     this.selectedPath.set(node.path);
 
     if (node.isDirectory) {
-      node.isExpanded = !node.isExpanded;
+      const wasExpanded = node.isExpanded;
 
-      if (node.isExpanded) {
+      if (!wasExpanded) {
+        node.isExpanded = true;
         await this.loadDirectory(node.path, node);
       } else {
-        /* Collapse: remove children from flat tree */
+        /* Collapse: remove all descendant nodes (level > node.level) */
         const flat = this.flatTree();
         const idx = flat.findIndex((n) => n.path === node.path);
         if (idx !== -1) {
+          let endIdx = idx + 1;
+          while (endIdx < flat.length && flat[endIdx].level > node.level) {
+            endIdx++;
+          }
+          const collapsed = { ...node, isExpanded: false };
           const newFlat = [
-            ...flat.slice(0, idx + 1),
-            ...flat.slice(idx + 1).filter((n) => n.level <= node.level),
+            ...flat.slice(0, idx),
+            collapsed,
+            ...flat.slice(endIdx),
           ];
           this.flatTree.set(newFlat);
         }
       }
-
-      /* Force update */
-      this.flatTree.update((f) => [...f]);
     } else {
       this.fileSelected.emit(node.path);
     }
@@ -576,8 +719,13 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
     this.contextMenu.set(null);
     if (!fileName?.trim()) return;
     const targetPath = this.joinPath(baseDir, fileName.trim());
-    await this.ipc.writeFile({ path: targetPath, content: '', createIfNotExists: true });
-    await this.refresh();
+    try {
+      await this.ipc.writeFile({ path: targetPath, content: '', createIfNotExists: true });
+      await this.expandAndRefresh(baseDir);
+      this.fileSelected.emit(targetPath);
+    } catch (err) {
+      console.error('[FileExplorer] newFile failed:', err);
+    }
   }
 
   async newFolder(): Promise<void> {
@@ -588,8 +736,71 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
     this.contextMenu.set(null);
     if (!folderName?.trim()) return;
     const targetPath = this.joinPath(baseDir, folderName.trim());
-    await this.ipc.createDirectory({ path: targetPath, recursive: true });
-    await this.refresh();
+    try {
+      await this.ipc.createDirectory({ path: targetPath, recursive: true });
+      await this.expandAndRefresh(baseDir);
+    } catch (err) {
+      console.error('[FileExplorer] newFolder failed:', err);
+    }
+  }
+
+  /**
+   * Show an inline input for a new file. Opens a folder first if needed.
+   */
+  async newFileFromToolbar(): Promise<void> {
+    if (!this.rootPath()) {
+      await this.openFolder();
+      if (!this.rootPath()) return;
+    }
+    this.inlineInput.set({ type: 'file' });
+    // Focus the input after it renders
+    setTimeout(() => {
+      const el = document.querySelector<HTMLInputElement>('.inline-name-input');
+      el?.focus();
+    }, 50);
+  }
+
+  /**
+   * Show an inline input for a new folder. Opens a folder first if needed.
+   */
+  async newFolderFromToolbar(): Promise<void> {
+    if (!this.rootPath()) {
+      await this.openFolder();
+      if (!this.rootPath()) return;
+    }
+    this.inlineInput.set({ type: 'folder' });
+    setTimeout(() => {
+      const el = document.querySelector<HTMLInputElement>('.inline-name-input');
+      el?.focus();
+    }, 50);
+  }
+
+  /**
+   * Commit the inline input — create the file or folder.
+   */
+  async commitInlineInput(name: string): Promise<void> {
+    const input = this.inlineInput();
+    this.inlineInput.set(null);
+    if (!input || !name?.trim()) return;
+
+    const root = this.rootPath();
+    if (!root) return;
+
+    const targetPath = this.joinPath(root, name.trim());
+    try {
+      if (input.type === 'folder') {
+        await this.ipc.createDirectory({ path: targetPath, recursive: true });
+      } else {
+        await this.ipc.writeFile({ path: targetPath, content: '', createIfNotExists: true });
+      }
+      await this.refresh();
+      if (input.type === 'file') {
+        this.fileSelected.emit(targetPath);
+        this.fileOpened.emit(targetPath);
+      }
+    } catch (err) {
+      console.error(`[FileExplorer] Failed to create ${input.type}:`, err);
+    }
   }
 
   async deleteItem(): Promise<void> {
@@ -598,8 +809,38 @@ export class FileExplorerComponent implements OnInit, OnDestroy {
     const ok = confirm(`Delete "${ctx.node.name}"?`);
     this.contextMenu.set(null);
     if (!ok) return;
-    await this.ipc.deletePath({ path: ctx.node.path, recursive: true });
-    await this.refresh();
+    try {
+      await this.ipc.deletePath({ path: ctx.node.path, recursive: true });
+      await this.refresh();
+    } catch (err) {
+      console.error('[FileExplorer] deleteItem failed:', err);
+    }
+  }
+
+  private async expandAndRefresh(dirPath: string): Promise<void> {
+    const root = this.rootPath();
+    if (!root) return;
+
+    // Collect currently expanded paths + ensure the target dir is included
+    const expandedPaths = new Set(
+      this.flatTree()
+        .filter(n => n.isDirectory && n.isExpanded)
+        .map(n => n.path),
+    );
+    expandedPaths.add(dirPath);
+
+    // Also expand all ancestor directories so the target is visible
+    let ancestor = this.dirname(dirPath);
+    while (ancestor && ancestor !== root && ancestor !== this.dirname(ancestor)) {
+      expandedPaths.add(ancestor);
+      ancestor = this.dirname(ancestor);
+    }
+
+    const newFlat: TreeNode[] = [];
+    await this.buildFlatTree(root, 0, expandedPaths, newFlat);
+
+    this.treeData.set(newFlat.filter(n => n.level === 0));
+    this.flatTree.set(newFlat);
   }
 
   private dirname(fullPath: string): string {

@@ -4,14 +4,13 @@ import {
   Input,
   signal,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 import type { ChatMessage } from './chat-panel.component';
 
 @Component({
   selector: 'app-chat-message',
   standalone: true,
-  imports: [CommonModule, IconComponent],
+  imports: [IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="message" [class.user]="message.role === 'user'" [class.assistant]="message.role === 'assistant'">

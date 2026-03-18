@@ -4,7 +4,7 @@ import {
   computed,
   inject,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { DecimalPipe } from '@angular/common';
 import { TokenMetricsService } from './token-metrics.service';
 import { TokenPricingService } from './token-pricing.service';
 
@@ -29,7 +29,7 @@ import { TokenPricingService } from './token-pricing.service';
 @Component({
   selector: 'app-token-bar',
   standalone: true,
-  imports: [CommonModule],
+  imports: [DecimalPipe],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="token-bar" [class]="'cost-' + metrics.costLevel()" role="status" aria-label="Token usage metrics">
@@ -174,9 +174,9 @@ import { TokenPricingService } from './token-pricing.service';
       transition: background 0.3s ease, color 0.3s ease;
 
       &.cost-badge-free   { color: var(--text-muted); }
-      &.cost-badge-low    { color: #27ae60; background: rgba(39, 174, 96, 0.12); }
-      &.cost-badge-medium { color: #f39c12; background: rgba(243, 156, 18, 0.12); }
-      &.cost-badge-high   { color: #e74c3c; background: rgba(231, 76, 60, 0.12); animation: costPulse 2s ease infinite; }
+      &.cost-badge-low    { color: var(--accent-success); background: rgba(39, 174, 96, 0.12); }
+      &.cost-badge-medium { color: var(--accent-warning); background: rgba(243, 156, 18, 0.12); }
+      &.cost-badge-high   { color: var(--accent-error); background: rgba(231, 76, 60, 0.12); animation: costPulse 2s ease infinite; }
     }
 
     /* Estimated indicator */

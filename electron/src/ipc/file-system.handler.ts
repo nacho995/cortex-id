@@ -55,8 +55,8 @@ import { IPC_CHANNELS } from '@cortex-id/shared-types';
 
 // ── Active file watchers ─────────────────────────────────────────────────────
 
-/** Map of watched paths to their fs.FSWatcher instances */
-const activeWatchers = new Map<string, fs.FSWatcher>();
+/** Map of watched root paths to their fs.FSWatcher instances (may be multiple on Linux) */
+const activeWatchers = new Map<string, fs.FSWatcher[]>();
 
 // ── Handler registration ─────────────────────────────────────────────────────
 
@@ -199,51 +199,105 @@ export function registerFileSystemHandlers(mainWindow: BrowserWindow): void {
   ipcMain.handle(IPC_CHANNELS.FILE_WATCH, async (_event, request: WatchDirectoryRequest): Promise<void> => {
     console.log(`[IPC] FILE_WATCH: ${request.path} (recursive=${request.recursive})`);
     try {
-      // Stop existing watcher for this path if any
+      // Stop existing watchers for this path if any
       const existing = activeWatchers.get(request.path);
       if (existing) {
-        existing.close();
+        existing.forEach(w => w.close());
         activeWatchers.delete(request.path);
       }
 
-      const watcher = fs.watch(
-        request.path,
-        { recursive: request.recursive ?? false },
-        (eventType, filename) => {
-          if (!filename) return;
+      const isLinux = process.platform === 'linux';
+      const useRecursive = (request.recursive ?? false) && !isLinux;
+      const watchers: fs.FSWatcher[] = [];
 
-          const fullPath = path.join(request.path, filename);
-          let changeType: FileChangeEvent['type'];
+      /** Creates a single fs.watch on the given directory */
+      const watchSingleDir = (dirPath: string): void => {
+        try {
+          const watcher = fs.watch(
+            dirPath,
+            { recursive: useRecursive },
+            (eventType, filename) => {
+              if (!filename) return;
 
-          if (eventType === 'rename') {
-            // Determine if it's a create or delete by checking existence
-            try {
-              fs.accessSync(fullPath);
-              changeType = 'created';
-            } catch {
-              changeType = 'deleted';
+              const fullPath = path.join(dirPath, filename);
+              let changeType: FileChangeEvent['type'];
+
+              if (eventType === 'rename') {
+                // Determine if it's a create or delete by checking existence
+                try {
+                  fs.accessSync(fullPath);
+                  changeType = 'created';
+
+                  // On Linux, if a new directory is created, start watching it too
+                  if (isLinux && request.recursive) {
+                    try {
+                      const stat = fs.statSync(fullPath);
+                      if (stat.isDirectory()) {
+                        watchSingleDir(fullPath);
+                      }
+                    } catch {
+                      // Ignore stat errors for newly created paths
+                    }
+                  }
+                } catch {
+                  changeType = 'deleted';
+                }
+              } else {
+                changeType = 'modified';
+              }
+
+              const event: FileChangeEvent = {
+                type: changeType,
+                path: fullPath,
+              };
+
+              if (!mainWindow.isDestroyed()) {
+                mainWindow.webContents.send(IPC_CHANNELS.FILE_CHANGE, event);
+              }
             }
-          } else {
-            changeType = 'modified';
-          }
+          );
 
-          const event: FileChangeEvent = {
-            type: changeType,
-            path: fullPath,
-          };
+          watcher.on('error', (err) => {
+            console.error(`[IPC] FILE_WATCH error for ${dirPath}:`, err);
+          });
 
-          if (!mainWindow.isDestroyed()) {
-            mainWindow.webContents.send(IPC_CHANNELS.FILE_CHANGE, event);
-          }
+          watchers.push(watcher);
+        } catch (err) {
+          console.error(`[IPC] FILE_WATCH: failed to watch ${dirPath}:`, err);
         }
-      );
+      };
 
-      watcher.on('error', (err) => {
-        console.error(`[IPC] FILE_WATCH error for ${request.path}:`, err);
-      });
+      // Watch the root directory
+      watchSingleDir(request.path);
 
-      activeWatchers.set(request.path, watcher);
-      console.log(`[IPC] FILE_WATCH started for: ${request.path}`);
+      // On Linux, manually watch all subdirectories for recursive mode
+      if (isLinux && request.recursive) {
+        const walkAndWatch = async (dirPath: string): Promise<void> => {
+          let items: string[];
+          try {
+            items = await fs.promises.readdir(dirPath);
+          } catch {
+            return;
+          }
+          for (const item of items) {
+            if (item.startsWith('.')) continue;
+            const fullPath = path.join(dirPath, item);
+            try {
+              const stat = await fs.promises.stat(fullPath);
+              if (stat.isDirectory()) {
+                watchSingleDir(fullPath);
+                await walkAndWatch(fullPath);
+              }
+            } catch {
+              // Skip entries we can't stat
+            }
+          }
+        };
+        await walkAndWatch(request.path);
+      }
+
+      activeWatchers.set(request.path, watchers);
+      console.log(`[IPC] FILE_WATCH started for: ${request.path} (${watchers.length} watcher(s))`);
     } catch (err) {
       console.error(`[IPC] FILE_WATCH setup error for ${request.path}:`, err);
       throw new Error(`Failed to watch directory: ${(err as Error).message}`);

@@ -4,15 +4,25 @@ import { Injectable, signal } from '@angular/core';
 export class VoiceService {
   readonly isListening = signal(false);
   readonly isSpeaking = signal(false);
+  /** Live preview: interim + final text (for display while recording). */
   readonly transcript = signal('');
+  /** Accumulated final (committed) results only. */
+  readonly finalTranscript = signal('');
   readonly voiceResponseEnabled = signal(true);
 
   private recognition: any = null;
   private synthesis = typeof window !== 'undefined' ? window.speechSynthesis : null;
+  private _onEnd: (() => void) | null = null;
+
+  /** Register a one-shot callback invoked when recognition ends (naturally or via stop). */
+  set onEnd(cb: (() => void) | null) { this._onEnd = cb; }
 
   startListening(): void {
     const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SR) { console.warn('[Voice] Not supported'); return; }
+
+    this.transcript.set('');
+    this.finalTranscript.set('');
 
     this.recognition = new SR();
     this.recognition.continuous = false;
@@ -20,24 +30,39 @@ export class VoiceService {
     this.recognition.lang = navigator.language || 'en-US';
 
     this.recognition.onstart = () => this.isListening.set(true);
-    this.recognition.onend = () => this.isListening.set(false);
+    this.recognition.onend = () => {
+      this.isListening.set(false);
+      const cb = this._onEnd;
+      this._onEnd = null;
+      cb?.();
+    };
     this.recognition.onerror = () => this.isListening.set(false);
     this.recognition.onresult = (event: any) => {
-      const t = Array.from(event.results as SpeechRecognitionResultList)
-        .map((r: any) => r[0].transcript).join('');
-      this.transcript.set(t);
+      let final = '';
+      let interim = '';
+      for (let i = 0; i < event.results.length; i++) {
+        const result = event.results[i];
+        if (result.isFinal) {
+          final += result[0].transcript;
+        } else {
+          interim += result[0].transcript;
+        }
+      }
+      this.finalTranscript.set(final);
+      this.transcript.set(final + interim);
     };
     this.recognition.start();
   }
 
-  stopListening(): void { this.recognition?.stop(); this.isListening.set(false); }
+  stopListening(): void { this.recognition?.stop(); }
 
   toggleListening(): void {
     this.isListening() ? this.stopListening() : this.startListening();
   }
 
   getFinalTranscript(): string {
-    const t = this.transcript();
+    const t = this.finalTranscript();
+    this.finalTranscript.set('');
     this.transcript.set('');
     return t;
   }

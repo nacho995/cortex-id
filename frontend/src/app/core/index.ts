@@ -7,6 +7,10 @@ export type { CortexTheme, ThemeColors, BackgroundConfig } from './theme.service
 export { THEMES } from './theme.service';
 export { VoiceService } from './voice.service';
 export { ExtensionsService } from './extensions.service';
-export type { VSXExtension } from './extensions.service';
+export type { VSXExtension, ExtensionContributes, SnippetDef } from './extensions.service';
+export { VsixInstallerService } from './vsix-installer.service';
+export type { VsixInstallResult, VsixContributions } from './vsix-installer.service';
+export { IconThemeService } from './icon-theme.service';
+export type { IconThemeData } from './icon-theme.service';
 export { LayoutService } from './layout.service';
 export type { LayoutMode } from './layout.service';

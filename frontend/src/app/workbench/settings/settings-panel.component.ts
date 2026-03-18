@@ -9,7 +9,6 @@ import {
   signal,
   computed,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Subject, takeUntil, filter, take } from 'rxjs';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
@@ -18,7 +17,7 @@ import { IpcService } from '../../core/ipc.service';
 import { WebSocketService } from '../../core/websocket.service';
 import { ThemeService, THEMES, CortexTheme, BackgroundConfig } from '../../core/theme.service';
 import { VSCodeThemeParserService } from '../../core/vscode-theme-parser.service';
-import { ExtensionsService } from '../../core/extensions.service';
+import { ExtensionsService, type VSXExtension } from '../../core/extensions.service';
 import type { AppSettings } from '@cortex-id/shared-types/ipc/app.types';
 import { WsMessageType } from '@cortex-id/shared-types/ws/messages.types';
 
@@ -27,7 +26,7 @@ type SettingsSection = 'general' | 'editor' | 'ai' | 'providers' | 'appearance' 
 @Component({
   selector: 'app-settings-panel',
   standalone: true,
-  imports: [CommonModule, FormsModule, IconComponent],
+  imports: [FormsModule, IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <!-- Backdrop -->
@@ -73,7 +72,7 @@ type SettingsSection = 'general' | 'editor' | 'ai' | 'providers' | 'appearance' 
               <!-- Anthropic -->
               <div class="provider-card">
                 <div class="provider-header">
-                  <span class="provider-badge" style="background: #9b59b6">🟣</span>
+                  <span class="provider-badge" style="background: var(--accent-purple)">🟣</span>
                   <span class="provider-name">Anthropic</span>
                   <span class="provider-status" [class]="anthropicKeyStatus()">
                     {{ anthropicKeyStatus() === 'active' ? '● Active' : '○ No key' }}
@@ -119,7 +118,7 @@ type SettingsSection = 'general' | 'editor' | 'ai' | 'providers' | 'appearance' 
               <!-- OpenAI -->
               <div class="provider-card">
                 <div class="provider-header">
-                  <span class="provider-badge" style="background: #f39c12">🟠</span>
+                  <span class="provider-badge" style="background: var(--accent-warning)">🟠</span>
                   <span class="provider-name">OpenAI / Codex</span>
                   <span class="provider-status" [class]="openaiKeyStatus()">
                     {{ openaiKeyStatus() === 'active' ? '● Active' : '○ No key' }}
@@ -166,7 +165,7 @@ type SettingsSection = 'general' | 'editor' | 'ai' | 'providers' | 'appearance' 
               <!-- Google -->
               <div class="provider-card">
                 <div class="provider-header">
-                  <span class="provider-badge" style="background: #5dade2">🔵</span>
+                  <span class="provider-badge" style="background: var(--accent-teal)">🔵</span>
                   <span class="provider-name">Google</span>
                   <span class="provider-status" [class]="googleKeyStatus()">
                     {{ googleKeyStatus() === 'active' ? '● Active' : '○ No key' }}
@@ -212,7 +211,7 @@ type SettingsSection = 'general' | 'editor' | 'ai' | 'providers' | 'appearance' 
               <!-- Ollama -->
               <div class="provider-card">
                 <div class="provider-header">
-                  <span class="provider-badge" style="background: #27ae60">🟢</span>
+                  <span class="provider-badge" style="background: var(--accent-success)">🟢</span>
                   <span class="provider-name">Ollama (Local)</span>
                   <span class="provider-status" [class]="ollamaStatus()">
                     {{ ollamaStatus() === 'active' ? '● Running' : '○ Offline' }}
@@ -274,18 +273,38 @@ type SettingsSection = 'general' | 'editor' | 'ai' | 'providers' | 'appearance' 
                 </div>
               } @else {
                 <div class="installed-extensions-list">
-                  @for (ext of extensionsService.installedExtensions(); track ext.id) {
+                  @for (ext of extensionsService.installedExtensions(); track ext.id + '-' + $index) {
                     <div class="installed-ext-card">
                       <div class="ext-card-left">
                         <span class="ext-card-icon">{{ getExtIcon(ext) }}</span>
                         <div class="ext-card-info">
-                          <span class="ext-card-name">{{ ext.displayName }}</span>
+                          <div class="ext-card-name-row">
+                            <span class="ext-card-name">{{ ext.displayName }}</span>
+                            <span class="ext-card-status" [class]="getExtStatus(ext).cssClass">{{ getExtStatus(ext).label }}</span>
+                          </div>
                           <span class="ext-card-publisher">{{ ext.publisher }} · v{{ ext.version }}</span>
                           <span class="ext-card-desc">{{ ext.description }}</span>
+                          <div class="ext-card-badges">
+                            @if ((ext.contributes?.themes ?? 0) > 0) {
+                              <span class="contrib-badge theme">Theme</span>
+                            }
+                            @if ((ext.contributes?.snippets ?? 0) > 0) {
+                              <span class="contrib-badge snippets">{{ ext.contributes!.snippets }} {{ ext.contributes!.snippets === 1 ? 'Snippet' : 'Snippets' }}</span>
+                            }
+                            @if ((ext.contributes?.grammars ?? 0) > 0) {
+                              <span class="contrib-badge grammar">Grammar</span>
+                            }
+                            @if ((ext.contributes?.languages ?? 0) > 0) {
+                              <span class="contrib-badge languages">{{ ext.contributes!.languages }} {{ ext.contributes!.languages === 1 ? 'Language' : 'Languages' }}</span>
+                            }
+                            @if ((ext.contributes?.commands ?? 0) > 0) {
+                              <span class="contrib-badge commands">{{ ext.contributes!.commands }} {{ ext.contributes!.commands === 1 ? 'Command' : 'Commands' }} (coming soon)</span>
+                            }
+                          </div>
                         </div>
                       </div>
                       <div class="ext-card-actions">
-                        @if (isThemeExtension(ext)) {
+                        @if ((ext.contributes?.themes ?? 0) > 0 || isLegacyThemeExtension(ext)) {
                           <button class="ext-apply-btn" (click)="applyInstalledTheme(ext)">
                             Apply Theme
                           </button>
@@ -1805,24 +1824,20 @@ type SettingsSection = 'general' | 'editor' | 'ai' | 'providers' | 'appearance' 
       min-width: 0;
     }
 
-    .ext-card-name {
-      font-weight: 600;
-      font-size: 13px;
-      color: var(--text-primary);
-    }
-
-    .ext-card-publisher {
-      font-size: 11px;
-      color: var(--text-muted);
-    }
-
-    .ext-card-desc {
-      font-size: 11px;
-      color: var(--text-secondary);
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
+    .ext-card-name-row { display: flex; align-items: center; gap: 8px; }
+    .ext-card-name { font-weight: 600; font-size: 13px; color: var(--text-primary); }
+    .ext-card-status { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--bg-hover); color: var(--text-muted); }
+    .ext-card-status.active { color: var(--accent-success); }
+    .ext-card-status.registered { color: var(--accent-primary); }
+    .ext-card-publisher { font-size: 11px; color: var(--text-muted); }
+    .ext-card-desc { font-size: 11px; color: var(--text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ext-card-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+    .contrib-badge { font-size: 10px; padding: 1px 6px; border-radius: 4px; background: var(--bg-surface); color: var(--text-secondary); border: 1px solid var(--border-color); }
+    .contrib-badge.theme { color: var(--accent-primary); }
+    .contrib-badge.snippets { color: var(--accent-success); }
+    .contrib-badge.grammar { color: var(--accent-warning); }
+    .contrib-badge.languages { color: var(--accent-secondary); }
+    .contrib-badge.commands { color: var(--text-muted); }
 
     .ext-card-actions {
       display: flex;
@@ -1833,9 +1848,9 @@ type SettingsSection = 'general' | 'editor' | 'ai' | 'providers' | 'appearance' 
     .ext-apply-btn {
       padding: 4px 12px;
       background: var(--accent-primary);
-      color: #fff;
+      color: var(--bg-tertiary);
       border: none;
-      border-radius: 4px;
+      border-radius: var(--radius-sm);
       font-size: 11px;
       cursor: pointer;
       &:hover { filter: brightness(1.1); }
@@ -1846,10 +1861,10 @@ type SettingsSection = 'general' | 'editor' | 'ai' | 'providers' | 'appearance' 
       background: transparent;
       color: var(--accent-error);
       border: 1px solid var(--accent-error);
-      border-radius: 4px;
+      border-radius: var(--radius-sm);
       font-size: 11px;
       cursor: pointer;
-      &:hover { background: var(--accent-error); color: #fff; }
+      &:hover { background: var(--accent-error); color: var(--bg-tertiary); }
     }
 
     .builtin-themes-grid {
@@ -1902,7 +1917,7 @@ type SettingsSection = 'general' | 'editor' | 'ai' | 'providers' | 'appearance' 
       font-size: 9px;
       padding: 1px 6px;
       background: var(--accent-primary);
-      color: #fff;
+      color: var(--bg-tertiary);
       border-radius: 8px;
     }
   `],
@@ -2440,22 +2455,48 @@ export class SettingsPanelComponent implements OnInit, OnDestroy {
 
   // ── Extensions methods ─────────────────────────────────────────────────────
 
-  getExtIcon(ext: any): string {
-    if (this.isThemeExtension(ext)) return '🎨';
-    if (ext.name?.toLowerCase().includes('snippet')) return '✂️';
-    if (ext.name?.toLowerCase().includes('icon')) return '📁';
+  getExtIcon(ext: VSXExtension): string {
+    if ((ext.contributes?.themes ?? 0) > 0) return '🎨';
+    if ((ext.contributes?.snippets ?? 0) > 0) return '✂️';
+    if ((ext.contributes?.grammars ?? 0) > 0 || (ext.contributes?.languages ?? 0) > 0) return '📁';
+    if ((ext.contributes?.commands ?? 0) > 0) return '🧩';
+    // Fallback for extensions without contributes data
+    const name = (ext.name || '').toLowerCase();
+    if (name.includes('theme')) return '🎨';
+    if (name.includes('snippet')) return '✂️';
     return '🧩';
   }
 
-  isThemeExtension(ext: any): boolean {
-    const name = (ext.name || '').toLowerCase();
-    const desc = (ext.description || '').toLowerCase();
-    const cat = (ext.category || '').toLowerCase();
-    return cat.includes('theme') || name.includes('theme') || desc.includes('theme') || desc.includes('color');
+  getExtStatus(ext: VSXExtension): { label: string; cssClass: string } {
+    const hasThemes = (ext.contributes?.themes ?? 0) > 0;
+    const hasSnippets = (ext.contributes?.snippets ?? 0) > 0;
+    const hasCommands = (ext.contributes?.commands ?? 0) > 0;
+
+    if (hasThemes) {
+      const themeId = 'ext-' + ext.id.replace(/\./g, '-');
+      const isActive = this.activeThemeId() === themeId;
+      return isActive
+        ? { label: 'Active', cssClass: 'active' }
+        : { label: 'Installed', cssClass: '' };
+    }
+    if (hasSnippets) {
+      return { label: 'Registered', cssClass: 'registered' };
+    }
+    if (hasCommands) {
+      return { label: 'Not yet supported', cssClass: 'unsupported' };
+    }
+    return { label: 'Installed', cssClass: '' };
   }
 
-  applyInstalledTheme(ext: any): void {
-    this.extensionsService.install(ext);
+  /** Fallback detection for extensions installed before the contributes field existed */
+  isLegacyThemeExtension(ext: VSXExtension): boolean {
+    if (ext.contributes) return false; // has modern data, use that
+    const name = (ext.name + ' ' + ext.displayName + ' ' + ext.description + ' ' + (ext.category ?? '')).toLowerCase();
+    return name.includes('theme') || name.includes('color') || name.includes('icon');
+  }
+
+  applyInstalledTheme(ext: VSXExtension): void {
+    this.extensionsService.applyTheme(ext);
   }
 
   uninstallExtension(id: string): void {
