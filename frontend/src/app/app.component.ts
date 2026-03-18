@@ -26,12 +26,8 @@ import { ToastContainerComponent } from './shared/ui/toast/toast-container.compo
   styles: [`
     :host {
       display: block;
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      overflow: hidden;
+      height: 100%;
+      width: 100%;
     }
   `],
 })

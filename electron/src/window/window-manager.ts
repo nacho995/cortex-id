@@ -61,11 +61,9 @@ export function createMainWindow(): BrowserWindow {
     minWidth: 800,
     minHeight: 600,
     show: false, // Show after content loads to avoid white flash
-    transparent: false,
-    backgroundColor: '#0a0a14',
-    ...(process.platform === 'darwin'
-      ? { titleBarStyle: 'hiddenInset' as const }
-      : { frame: false }),
+    backgroundColor: '#1e1e1e',
+    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
+    frame: process.platform !== 'darwin',
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -84,35 +82,8 @@ export function createMainWindow(): BrowserWindow {
   // Show window once content is ready (avoids white flash)
   win.once('ready-to-show', () => {
     win.show();
-
-    // Fix HiDPI gap on Linux: content area doesn't fill the window
-    if (process.platform !== 'darwin') {
-      // Get the actual difference between window and content
-      const winBounds = win.getBounds();
-      const contentBounds = win.getContentBounds();
-      const diffX = winBounds.width - contentBounds.width;
-      const diffY = winBounds.height - contentBounds.height;
-
-      if (diffY > 0 || diffX > 0) {
-        // Content is smaller than window — expand content to fill
-        win.setContentSize(winBounds.width, winBounds.height);
-        console.log(`[Electron] Fixed HiDPI gap: window=${winBounds.width}x${winBounds.height}, content was ${contentBounds.width}x${contentBounds.height}, diff=${diffX}x${diffY}`);
-      }
-    }
-
     console.log('[Electron] Main window shown');
   });
-
-  // Keep content filling the window on resize (HiDPI fix)
-  if (process.platform !== 'darwin') {
-    win.on('resize', () => {
-      const winBounds = win.getBounds();
-      const contentBounds = win.getContentBounds();
-      if (contentBounds.height < winBounds.height || contentBounds.width < winBounds.width) {
-        win.setContentSize(winBounds.width, winBounds.height);
-      }
-    });
-  }
 
   // Persist window state on resize/move
   const saveWindowState = () => {

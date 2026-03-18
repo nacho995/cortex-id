@@ -260,11 +260,4 @@ function setupMenu(win: BrowserWindow): void {
   const menu = Menu.buildFromTemplate(template);
   Menu.setApplicationMenu(menu);
 
-  // Hide the native menu bar on Linux/Windows — Cortex uses its own custom titlebar.
-  // On macOS the menu bar is always hidden in the window (hiddenInset titleBarStyle),
-  // but the system menu bar is still needed for keyboard shortcuts.
-  if (process.platform !== 'darwin') {
-    win.setMenuBarVisibility(false);
-    win.autoHideMenuBar = true;
-  }
 }
