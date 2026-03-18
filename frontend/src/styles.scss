@@ -173,9 +173,9 @@ body.has-bg-image {
     border-bottom: none !important;
   }
 
-  /* ── Statusbar — keep blue even with wallpaper ── */
+  /* ── Statusbar — transparent with wallpaper ── */
   .statusbar {
-    background: rgba(31, 111, 235, 0.85) !important;
+    background: transparent !important;
     border-top: none !important;
   }
 
@@ -567,16 +567,10 @@ a {
   }
 }
 
-/* Statusbar — solid blue like VS Code */
-.statusbar {
-  background: #1f6feb !important;
-  color: #fff !important;
-  border-top: none !important;
-}
-
+/* Statusbar — transparent dark (reverted from blue) */
 .statusbar-btn {
-  color: rgba(255, 255, 255, 0.7) !important;
-  &:hover { color: #fff !important; }
+  color: var(--text-muted) !important;
+  &:hover { color: var(--text-primary) !important; }
 }
 
 /* ── Titlebar buttons — visibles siempre ── */
@@ -605,4 +599,21 @@ a {
 .titlebar-actions .titlebar-btn svg {
   stroke: currentColor !important;
   fill: none !important;
+}
+
+/* ── Bottom gap cover — paints a strip matching the IDE color to hide WM decoration gap ── */
+body::after {
+  content: '';
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 50px;
+  background: var(--bg-tertiary);
+  z-index: -2;
+  pointer-events: none;
+}
+
+body.has-bg-image::after {
+  background: #000;
 }
