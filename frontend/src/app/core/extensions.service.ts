@@ -1,4 +1,5 @@
 import { Injectable, inject, signal } from '@angular/core';
+import JSZip from 'jszip';
 import { ThemeService, type CortexTheme, type ThemeColors } from './theme.service';
 
 export interface VSXExtension {
@@ -91,98 +92,146 @@ export class ExtensionsService {
     this.searchResults.update(r => r.map(x => x.id === id ? { ...x, installed: false } : x));
   }
 
+  /**
+   * Downloads the VSIX package from Open VSX, extracts the theme JSON from inside
+   * the ZIP archive, parses it into a CortexTheme and applies it immediately.
+   *
+   * Why VSIX? Open VSX only exposes a handful of pre-extracted files via its
+   * /file/ endpoint (package.json, README, icon…). The actual theme JSON files
+   * (e.g. extension/themes/dracula.json) live inside the VSIX ZIP and are NOT
+   * individually accessible via HTTP. We therefore download the whole VSIX
+   * (~50–500 KB), unzip it in-memory with JSZip, and read the theme file.
+   */
   private async installTheme(ext: VSXExtension): Promise<void> {
-    const BUILTIN: Record<string, { name: string; vars: Record<string, string> }> = {
-      'dracula-theme.theme-dracula': {
-        name: 'Dracula',
-        vars: {
-          '--bg-primary': '#282a36', '--bg-secondary': '#1e1f29', '--bg-tertiary': '#191a21',
-          '--bg-surface': '#44475a', '--bg-hover': '#44475a', '--text-primary': '#f8f8f2',
-          '--text-secondary': '#cfcfc2', '--text-muted': '#6272a4', '--accent-primary': '#bd93f9',
-          '--accent-secondary': '#8be9fd', '--accent-error': '#ff5555', '--accent-warning': '#ffb86c',
-          '--accent-success': '#50fa7b', '--border-color': '#44475a', '--border-subtle': '#383a4a',
-        },
-      },
-      'enkia.tokyo-night': {
-        name: 'Tokyo Night',
-        vars: {
-          '--bg-primary': '#1a1b26', '--bg-secondary': '#16161e', '--bg-tertiary': '#13131a',
-          '--bg-surface': '#24283b', '--bg-hover': '#2a2e45', '--text-primary': '#c0caf5',
-          '--text-secondary': '#a9b1d6', '--text-muted': '#565f89', '--accent-primary': '#7aa2f7',
-          '--accent-secondary': '#7dcfff', '--accent-error': '#f7768e', '--accent-warning': '#e0af68',
-          '--accent-success': '#9ece6a', '--border-color': '#24283b', '--border-subtle': '#1f2335',
-        },
-      },
-      'catppuccin.catppuccin-vsc': {
-        name: 'Catppuccin Mocha',
-        vars: {
-          '--bg-primary': '#1e1e2e', '--bg-secondary': '#181825', '--bg-tertiary': '#11111b',
-          '--bg-surface': '#313244', '--bg-hover': '#45475a', '--text-primary': '#cdd6f4',
-          '--text-secondary': '#bac2de', '--text-muted': '#6c7086', '--accent-primary': '#cba6f7',
-          '--accent-secondary': '#89dceb', '--accent-error': '#f38ba8', '--accent-warning': '#fab387',
-          '--accent-success': '#a6e3a1', '--border-color': '#313244', '--border-subtle': '#45475a',
-        },
-      },
-      'arcticicestudio.nord-visual-studio-code': {
-        name: 'Nord',
-        vars: {
-          '--bg-primary': '#2e3440', '--bg-secondary': '#272c36', '--bg-tertiary': '#1f2430',
-          '--bg-surface': '#3b4252', '--bg-hover': '#434c5e', '--text-primary': '#eceff4',
-          '--text-secondary': '#d8dee9', '--text-muted': '#4c566a', '--accent-primary': '#88c0d0',
-          '--accent-secondary': '#81a1c1', '--accent-error': '#bf616a', '--accent-warning': '#ebcb8b',
-          '--accent-success': '#a3be8c', '--border-color': '#3b4252', '--border-subtle': '#434c5e',
-        },
-      },
-      'github.github-vscode-theme': {
-        name: 'GitHub Dark',
-        vars: {
-          '--bg-primary': '#0d1117', '--bg-secondary': '#161b22', '--bg-tertiary': '#010409',
-          '--bg-surface': '#21262d', '--bg-hover': '#30363d', '--text-primary': '#c9d1d9',
-          '--text-secondary': '#8b949e', '--text-muted': '#484f58', '--accent-primary': '#58a6ff',
-          '--accent-secondary': '#79c0ff', '--accent-error': '#f85149', '--accent-warning': '#d29922',
-          '--accent-success': '#3fb950', '--border-color': '#30363d', '--border-subtle': '#21262d',
-        },
-      },
-    };
-
-    const match = BUILTIN[ext.id]
-      ?? Object.entries(BUILTIN).find(([key]) =>
-        key.toLowerCase().includes(ext.name.toLowerCase())
-        || ext.id.toLowerCase().includes(key.split('.')[1]?.toLowerCase() ?? ''),
-      )?.[1];
-
-    if (match) {
-      const root = document.documentElement.style;
-      Object.entries(match.vars).forEach(([k, v]) => root.setProperty(k, v));
-      localStorage.setItem('cortex-ext-theme-vars', JSON.stringify(match.vars));
-      localStorage.setItem('cortex-theme', 'ext-' + ext.id);
-      this.installProgress.set(`Theme "${match.name}" applied!`);
-      return;
-    }
-
     try {
-      const res = await fetch(`https://open-vsx.org/api/${ext.publisher}/${ext.name}/${ext.version}`);
-      if (!res.ok) return;
-      const meta = await res.json();
-      const jsonUrl = meta.downloads?.['universal'] ?? meta.files?.download;
-      if (!jsonUrl) return;
-      const themeRes = await fetch(jsonUrl);
-      if (!themeRes.ok) return;
-      const themeJson = await themeRes.json();
-      const cortexTheme = this.parseVSCodeTheme(themeJson, ext);
-      if (cortexTheme) {
-        this.themeService.addImportedTheme(cortexTheme);
+      // ── Step 1: Resolve the exact version and VSIX download URL ─────────────
+      console.log(`[Extensions] Installing theme: ${ext.displayName} (${ext.publisher}/${ext.name})`);
+      this.installProgress.set(`Fetching metadata for ${ext.displayName}…`);
+
+      const metaUrl = `https://open-vsx.org/api/${ext.publisher}/${ext.name}/${ext.version}`;
+      console.log('[Extensions] Fetching metadata from:', metaUrl);
+
+      const metaRes = await fetch(metaUrl);
+      if (!metaRes.ok) {
+        console.error('[Extensions] Metadata fetch failed:', metaRes.status, metaRes.statusText);
+        return;
       }
+      const meta = await metaRes.json();
+
+      // The VSIX download URL is under files.download or downloads.universal
+      const vsixUrl: string | undefined =
+        meta.files?.download ?? meta.downloads?.['universal'];
+
+      if (!vsixUrl) {
+        console.error('[Extensions] No VSIX download URL found in metadata:', meta.files);
+        return;
+      }
+      console.log('[Extensions] VSIX URL:', vsixUrl);
+
+      // ── Step 2: Download the VSIX (ZIP) ─────────────────────────────────────
+      this.installProgress.set(`Downloading ${ext.displayName}…`);
+      console.log('[Extensions] Downloading VSIX…');
+
+      const vsixRes = await fetch(vsixUrl);
+      if (!vsixRes.ok) {
+        console.error('[Extensions] VSIX download failed:', vsixRes.status);
+        return;
+      }
+      const vsixBuffer = await vsixRes.arrayBuffer();
+      console.log(`[Extensions] VSIX downloaded: ${(vsixBuffer.byteLength / 1024).toFixed(1)} KB`);
+
+      // ── Step 3: Unzip and read extension/package.json ────────────────────────
+      this.installProgress.set(`Extracting ${ext.displayName}…`);
+      const zip = await JSZip.loadAsync(vsixBuffer);
+
+      const pkgFile = zip.file('extension/package.json');
+      if (!pkgFile) {
+        console.error('[Extensions] extension/package.json not found in VSIX');
+        return;
+      }
+
+      const pkgText = await pkgFile.async('text');
+      const pkg = JSON.parse(pkgText);
+      console.log('[Extensions] extension/package.json parsed OK');
+
+      const themes: Array<{ label?: string; uiTheme?: string; path?: string }> =
+        pkg.contributes?.themes ?? [];
+
+      if (themes.length === 0) {
+        console.warn('[Extensions] No themes found in contributes.themes');
+        return;
+      }
+
+      console.log('[Extensions] Available themes in VSIX:', themes.map(t => t.label));
+
+      // ── Step 4: Extract the first (primary) theme JSON ───────────────────────
+      let themeJson: Record<string, unknown> | null = null;
+      let appliedThemeEntry: typeof themes[0] | null = null;
+
+      for (const themeEntry of themes) {
+        // path is relative to the extension root, e.g. "./themes/dracula.json"
+        // Inside the VSIX it lives at "extension/themes/dracula.json"
+        const relativePath = (themeEntry.path ?? '').replace(/^\.\//, '');
+        const zipPath = `extension/${relativePath}`;
+
+        console.log(`[Extensions] Trying theme file: ${zipPath}`);
+        const themeFile = zip.file(zipPath);
+
+        if (!themeFile) {
+          console.warn(`[Extensions] File not found in ZIP: ${zipPath}`);
+          continue;
+        }
+
+        try {
+          const rawText = await themeFile.async('text');
+
+          // VS Code themes are often JSONC (JSON with comments + trailing commas).
+          // Strip them before parsing.
+          const cleanJson = rawText
+            .replace(/\/\/[^\n]*/g, '')          // remove // line comments
+            .replace(/\/\*[\s\S]*?\*\//g, '')    // remove /* block comments */
+            .replace(/,(\s*[}\]])/g, '$1');       // remove trailing commas
+
+          themeJson = JSON.parse(cleanJson);
+          appliedThemeEntry = themeEntry;
+          console.log(
+            `[Extensions] Theme JSON loaded from ${zipPath}:`,
+            Object.keys(themeJson as object),
+          );
+          break;
+        } catch (parseErr) {
+          console.warn(`[Extensions] Failed to parse ${zipPath}:`, parseErr);
+        }
+      }
+
+      // ── Step 5: Convert to CortexTheme and apply ─────────────────────────────
+      if (!themeJson) {
+        console.error('[Extensions] Could not extract any theme JSON from VSIX');
+        return;
+      }
+
+      const cortexTheme = this.parseVSCodeTheme(themeJson, ext, appliedThemeEntry?.label);
+      if (!cortexTheme) {
+        console.error('[Extensions] parseVSCodeTheme returned null — unexpected theme format');
+        return;
+      }
+
+      this.themeService.addImportedTheme(cortexTheme);
+      console.log('[Extensions] Theme applied successfully:', cortexTheme.name, cortexTheme.colors);
     } catch (err) {
-      console.warn('[Extensions] Could not fetch remote theme:', err);
+      console.error('[Extensions] Theme installation error:', err);
     }
   }
 
-  private parseVSCodeTheme(raw: any, ext: VSXExtension): CortexTheme | null {
+  private parseVSCodeTheme(
+    raw: any,
+    ext: VSXExtension,
+    labelOverride?: string,
+  ): CortexTheme | null {
     try {
       const colors = raw.colors ?? {};
-      const isDark = raw.type !== 'light';
-      const name = raw.name || ext.displayName;
+      const isDark = (raw.type ?? raw.uiTheme ?? 'dark') !== 'light';
+      const name = labelOverride || raw.name || ext.displayName;
       const id = 'ext-' + ext.id.replace(/\./g, '-');
 
       const themeColors: ThemeColors = {
