@@ -333,7 +333,7 @@ export const THEMES: CortexTheme[] = [
 const DEFAULT_BACKGROUND: BackgroundConfig = {
   type: 'none',
   opacity: 15,
-  blur: 8,
+  blur: 0,
   position: 'cover',
 };
 
@@ -434,7 +434,7 @@ export class ThemeService {
           type: 'image',
           imageUrl: 'https://images.unsplash.com/photo-1515705576963-95cad62945b6?w=1920&q=80',
           opacity: 12,
-          blur: 3,
+          blur: 0,
           position: 'cover',
         });
       }

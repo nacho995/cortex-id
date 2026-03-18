@@ -117,7 +117,7 @@ body.has-bg-image::before {
   background-image: var(--bg-image-url);
   background-size: cover;
   background-position: center;
-  filter: blur(var(--bg-blur, 3px));
+  filter: blur(var(--bg-blur, 0px));
   opacity: var(--bg-opacity, 0.15);
   z-index: -1;
   pointer-events: none;
