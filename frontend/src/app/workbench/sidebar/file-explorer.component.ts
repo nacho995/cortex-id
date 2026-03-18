@@ -144,12 +144,22 @@ interface TreeNode extends DirectoryEntry {
       align-items: center;
       justify-content: space-between;
       padding: 8px 12px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
       color: var(--text-muted);
       text-transform: uppercase;
       flex-shrink: 0;
+
+      /* Show actions only on hover */
+      .explorer-actions {
+        opacity: 0;
+        transition: opacity var(--transition-fast);
+      }
+
+      &:hover .explorer-actions {
+        opacity: 1;
+      }
     }
 
     .explorer-actions {
@@ -168,9 +178,10 @@ interface TreeNode extends DirectoryEntry {
       border-radius: var(--radius-sm);
       color: var(--text-secondary);
       cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
 
       &:hover {
-        background: var(--bg-hover);
+        background: rgba(255, 255, 255, 0.08);
         color: var(--text-primary);
       }
     }
@@ -179,12 +190,13 @@ interface TreeNode extends DirectoryEntry {
       display: flex;
       align-items: center;
       gap: 6px;
-      padding: 4px 12px;
+      padding: 5px 12px;
       font-size: 11px;
       font-weight: 600;
       color: var(--text-secondary);
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
       flex-shrink: 0;
+      background: rgba(255, 255, 255, 0.02);
     }
 
     .root-name {
@@ -209,19 +221,49 @@ interface TreeNode extends DirectoryEntry {
       color: var(--text-secondary);
       border-radius: 0;
       padding-right: 8px;
+      position: relative;
+      transition: background var(--transition-fast), color var(--transition-fast);
+
+      /* Indentation guide lines (VS Code style) */
+      &::before {
+        content: '';
+        position: absolute;
+        left: calc(var(--indent-level, 0) * 16px + 24px);
+        top: 0;
+        bottom: 0;
+        width: 1px;
+        background: rgba(255, 255, 255, 0.05);
+        pointer-events: none;
+      }
 
       &:hover {
-        background: var(--bg-hover);
+        background: rgba(255, 255, 255, 0.05);
         color: var(--text-primary);
+
+        .item-name {
+          color: var(--text-primary);
+        }
       }
 
       &.is-selected {
-        background: var(--bg-surface);
+        background: rgba(166, 226, 46, 0.08);
         color: var(--text-primary);
+
+        &::after {
+          content: '';
+          position: absolute;
+          left: 0;
+          top: 0;
+          bottom: 0;
+          width: 2px;
+          background: var(--accent-primary);
+          border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+        }
       }
 
       &.is-directory {
         color: var(--text-primary);
+        font-weight: 500;
       }
     }
 
@@ -233,6 +275,11 @@ interface TreeNode extends DirectoryEntry {
       height: 16px;
       flex-shrink: 0;
       color: var(--text-muted);
+      transition: transform var(--transition-fast), color var(--transition-fast);
+
+      .is-expanded & {
+        color: var(--text-secondary);
+      }
     }
 
     .expand-arrow-placeholder {
@@ -246,9 +293,14 @@ interface TreeNode extends DirectoryEntry {
       align-items: center;
       flex-shrink: 0;
       color: var(--text-muted);
+      transition: color var(--transition-fast);
 
       .is-directory & {
         color: var(--accent-warning);
+      }
+
+      .is-selected & {
+        color: var(--accent-primary);
       }
     }
 
@@ -258,6 +310,7 @@ interface TreeNode extends DirectoryEntry {
       text-overflow: ellipsis;
       white-space: nowrap;
       font-size: 13px;
+      transition: color var(--transition-fast);
     }
 
     .loading-state,
@@ -292,13 +345,15 @@ interface TreeNode extends DirectoryEntry {
     /* Context menu */
     .context-menu {
       position: fixed;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
+      background: color-mix(in srgb, var(--bg-surface) 95%, transparent);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: var(--radius-lg);
       box-shadow: var(--shadow-lg);
       z-index: 1000;
-      min-width: 160px;
+      min-width: 168px;
       padding: 4px;
+      animation: scaleIn 0.12s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
     .context-item {
@@ -309,22 +364,28 @@ interface TreeNode extends DirectoryEntry {
       border: none;
       border-radius: var(--radius-sm);
       color: var(--text-primary);
-      font-size: 13px;
+      font-size: 12px;
       text-align: left;
       cursor: pointer;
+      transition: background var(--transition-fast);
+      font-family: var(--font-sans);
 
       &:hover {
-        background: var(--bg-hover);
+        background: rgba(255, 255, 255, 0.07);
       }
 
       &.danger {
         color: var(--accent-error);
+
+        &:hover {
+          background: rgba(249, 38, 114, 0.1);
+        }
       }
     }
 
     .context-separator {
       height: 1px;
-      background: var(--border-color);
+      background: rgba(255, 255, 255, 0.06);
       margin: 4px 0;
     }
   `],

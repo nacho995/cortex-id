@@ -343,17 +343,20 @@ interface ModelGroup {
       align-items: center;
       justify-content: space-between;
       padding: 10px 14px;
-      border-bottom: 1px solid var(--border-color);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       flex-shrink: 0;
+      background: linear-gradient(180deg, var(--bg-secondary) 0%, color-mix(in srgb, var(--bg-secondary) 95%, var(--bg-primary)) 100%);
     }
 
     .chat-title {
       display: flex;
       align-items: center;
       gap: 8px;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
       color: var(--text-primary);
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
     }
 
     /* Model Selector */
@@ -362,15 +365,20 @@ interface ModelGroup {
       align-items: center;
       gap: 6px;
       padding: 4px 10px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      color: var(--text-primary);
-      font-size: 12px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-pill);
+      color: var(--text-secondary);
+      font-size: 11px;
       cursor: pointer;
-      transition: border-color 0.15s ease;
+      transition: all var(--transition-fast);
+      font-family: var(--font-sans);
 
-      &:hover { border-color: var(--accent-primary); }
+      &:hover {
+        border-color: var(--accent-primary);
+        background: rgba(166, 226, 46, 0.06);
+        color: var(--text-primary);
+      }
     }
 
     .model-badge {
@@ -388,17 +396,18 @@ interface ModelGroup {
     /* Model Dropdown */
     .model-dropdown {
       position: absolute;
-      top: 48px;
+      top: 52px;
       right: 8px;
-      width: 280px;
-      max-height: 400px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-color);
+      width: 290px;
+      max-height: 420px;
+      background: color-mix(in srgb, var(--bg-surface) 95%, transparent);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
       border-radius: var(--radius-lg);
-      box-shadow: var(--shadow-lg);
+      box-shadow: var(--shadow-lg), 0 0 0 1px rgba(0, 0, 0, 0.2);
       z-index: 100;
       overflow-y: auto;
-      animation: slideInUp 0.15s ease;
+      animation: slideInDown 0.18s cubic-bezier(0.34, 1.56, 0.64, 1);
     }
 
     .model-dropdown-header {
@@ -459,10 +468,16 @@ interface ModelGroup {
       font-size: 12px;
       cursor: pointer;
       text-align: left;
-      transition: background 0.1s ease;
+      transition: background var(--transition-fast), color var(--transition-fast);
+      font-family: var(--font-sans);
 
-      &:hover:not(.disabled) { background: var(--bg-hover); }
-      &.active { background: var(--accent-primary); color: var(--bg-tertiary); border-radius: 0; }
+      &:hover:not(.disabled) { background: rgba(255, 255, 255, 0.06); }
+      &.active {
+        background: rgba(166, 226, 46, 0.12);
+        color: var(--accent-primary);
+        border-radius: 0;
+        font-weight: 500;
+      }
     }
 
     .model-option-name { flex: 1; }
@@ -587,28 +602,36 @@ interface ModelGroup {
     }
 
     .suggestion-btn {
-      padding: 7px 12px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-color);
+      padding: 8px 14px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.07);
       border-radius: var(--radius-md);
       color: var(--text-secondary);
       font-size: 12px;
       cursor: pointer;
       text-align: left;
-      transition: background var(--transition-fast), color var(--transition-fast);
+      transition: all var(--transition-fast);
+      font-family: var(--font-sans);
 
       &:hover {
-        background: var(--bg-hover);
+        background: rgba(166, 226, 46, 0.06);
+        border-color: rgba(166, 226, 46, 0.2);
         color: var(--text-primary);
+        transform: translateX(2px);
       }
     }
 
     /* Streaming indicator */
     .streaming-indicator {
-      padding: 12px 16px;
+      padding: 10px 16px;
       display: flex;
       align-items: center;
       gap: 10px;
+      background: rgba(166, 226, 46, 0.03);
+      border-left: 2px solid rgba(166, 226, 46, 0.3);
+      margin: 4px 8px;
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      animation: fadeIn var(--transition-fast);
     }
 
     .typing-dots {
@@ -617,11 +640,11 @@ interface ModelGroup {
       align-items: center;
 
       span {
-        width: 6px;
-        height: 6px;
+        width: 5px;
+        height: 5px;
         border-radius: 50%;
         background: var(--accent-primary);
-        animation: typingBounce 1.2s infinite;
+        animation: typingBounce 1.4s infinite;
 
         &:nth-child(2) { animation-delay: 0.2s; }
         &:nth-child(3) { animation-delay: 0.4s; }
@@ -629,8 +652,8 @@ interface ModelGroup {
     }
 
     @keyframes typingBounce {
-      0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
-      30% { transform: translateY(-6px); opacity: 1; }
+      0%, 60%, 100% { transform: translateY(0); opacity: 0.35; }
+      30% { transform: translateY(-5px); opacity: 1; }
     }
 
     /* Feature 6: Streaming token counter */
@@ -685,9 +708,10 @@ interface ModelGroup {
       align-items: center;
       gap: 2px;
       margin-bottom: 8px;
-      background: var(--bg-tertiary);
-      border-radius: var(--radius-md);
-      padding: 2px;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: var(--radius-lg);
+      padding: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .mode-tab {
@@ -699,19 +723,25 @@ interface ModelGroup {
       padding: 5px 8px;
       background: transparent;
       border: none;
-      border-radius: var(--radius-sm);
+      border-radius: var(--radius-md);
       color: var(--text-muted);
-      font-size: 12px;
+      font-size: 11px;
       font-weight: 500;
       cursor: pointer;
-      transition: all 0.15s ease;
+      transition: all var(--transition-fast);
+      font-family: var(--font-sans);
+      letter-spacing: 0.01em;
 
-      &:hover { color: var(--text-primary); }
+      &:hover {
+        color: var(--text-primary);
+        background: rgba(255, 255, 255, 0.04);
+      }
 
       &.active {
-        background: var(--bg-surface);
+        background: rgba(166, 226, 46, 0.1);
         color: var(--accent-primary);
-        box-shadow: var(--shadow-sm);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(166, 226, 46, 0.15) inset;
+        font-weight: 600;
       }
     }
 
@@ -758,14 +788,16 @@ interface ModelGroup {
       display: flex;
       align-items: flex-end;
       gap: 8px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      padding: 8px 10px;
-      transition: border-color var(--transition-fast);
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-lg);
+      padding: 10px 12px;
+      transition: border-color var(--transition-fast), box-shadow var(--transition-fast), background var(--transition-fast);
 
       &:focus-within {
-        border-color: var(--accent-primary);
+        border-color: rgba(166, 226, 46, 0.4);
+        background: rgba(166, 226, 46, 0.03);
+        box-shadow: 0 0 0 3px rgba(166, 226, 46, 0.06);
       }
     }
 
@@ -776,18 +808,19 @@ interface ModelGroup {
       color: var(--text-primary);
       font-family: var(--font-sans);
       font-size: 13px;
-      line-height: 1.5;
+      line-height: 1.6;
       resize: none;
       outline: none;
-      max-height: 120px;
+      max-height: 140px;
       overflow-y: auto;
 
       &::placeholder {
         color: var(--text-muted);
+        font-style: italic;
       }
 
       &:disabled {
-        opacity: 0.6;
+        opacity: 0.5;
         cursor: not-allowed;
       }
     }
@@ -868,23 +901,30 @@ interface ModelGroup {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 30px;
-      height: 30px;
-      background: linear-gradient(135deg, #FF0040, #00FF88);
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, #FF0040 0%, #a6e22e 100%);
       border: none;
-      border-radius: var(--radius-sm);
+      border-radius: var(--radius-md);
       color: white;
       cursor: pointer;
       flex-shrink: 0;
-      transition: opacity var(--transition-fast);
+      transition: all var(--transition-fast);
+      box-shadow: 0 2px 8px rgba(166, 226, 46, 0.2);
 
       &:disabled {
-        opacity: 0.4;
+        opacity: 0.3;
         cursor: not-allowed;
+        box-shadow: none;
       }
 
       &:not(:disabled):hover {
-        opacity: 0.9;
+        transform: scale(1.08);
+        box-shadow: 0 4px 12px rgba(166, 226, 46, 0.35);
+      }
+
+      &:not(:disabled):active {
+        transform: scale(0.95);
       }
     }
 

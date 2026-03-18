@@ -176,29 +176,39 @@ const LANGUAGE_MAP: Record<string, string> = {
       gap: 16px;
       color: var(--text-muted);
       animation: fadeIn var(--transition-slow);
+      background: radial-gradient(ellipse at center, rgba(166, 226, 46, 0.03) 0%, transparent 70%);
     }
 
     .welcome-logo {
       color: var(--accent-primary);
-      opacity: 0.6;
+      opacity: 0.4;
+      filter: drop-shadow(0 0 24px rgba(166, 226, 46, 0.3));
+      animation: pulse 3s ease-in-out infinite;
     }
 
     .welcome-title {
-      font-size: 28px;
+      font-size: 32px;
       font-weight: 700;
       color: var(--text-primary);
-      letter-spacing: -0.5px;
+      letter-spacing: -1px;
+      background: linear-gradient(135deg, var(--text-primary) 0%, var(--text-secondary) 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
     }
 
     .welcome-subtitle {
-      font-size: 14px;
+      font-size: 13px;
       color: var(--text-muted);
-      margin-top: -8px;
+      margin-top: -10px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 500;
     }
 
     .welcome-actions {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       margin-top: 8px;
     }
 
@@ -206,42 +216,58 @@ const LANGUAGE_MAP: Record<string, string> = {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 16px;
-      background: var(--bg-surface);
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius-md);
-      color: var(--text-primary);
+      padding: 9px 18px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--radius-lg);
+      color: var(--text-secondary);
       font-size: 13px;
       cursor: pointer;
-      transition: background var(--transition-fast);
+      transition: all var(--transition-fast);
+      font-family: var(--font-sans);
 
       &:hover {
-        background: var(--bg-hover);
+        background: rgba(166, 226, 46, 0.08);
+        border-color: rgba(166, 226, 46, 0.25);
+        color: var(--text-primary);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+      }
+
+      &:active {
+        transform: translateY(0);
       }
     }
 
     .welcome-shortcuts {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 16px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px 20px;
+      margin-top: 20px;
+      padding: 16px 20px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      border-radius: var(--radius-lg);
     }
 
     .shortcut {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 10px;
       font-size: 12px;
       color: var(--text-muted);
 
       kbd {
-        padding: 2px 6px;
-        background: var(--bg-surface);
-        border: 1px solid var(--border-color);
+        padding: 2px 7px;
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-bottom-width: 2px;
         border-radius: var(--radius-sm);
         font-family: var(--font-mono);
-        font-size: 11px;
+        font-size: 10px;
         color: var(--text-secondary);
+        white-space: nowrap;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
       }
     }
 
@@ -252,16 +278,27 @@ const LANGUAGE_MAP: Record<string, string> = {
       gap: 16px;
       height: var(--statusbar-height);
       padding: 0 12px;
-      background: var(--accent-primary);
-      color: var(--bg-tertiary);
-      font-size: 11px;
+      background: #0d1117;
+      border-top: 1px solid rgba(0, 136, 255, 0.3);
+      color: var(--text-muted);
+      font-size: 10px;
       flex-shrink: 0;
+      font-family: var(--font-sans);
     }
 
     .status-item {
+      font-size: 10px;
+      letter-spacing: 0.02em;
+
       &.dirty {
         color: var(--accent-warning);
+        font-weight: 600;
       }
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50% { opacity: 0.6; }
     }
   `],
 })

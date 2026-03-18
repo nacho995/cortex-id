@@ -1,3 +1,6 @@
+// ─── Google Fonts — JetBrains Mono + Inter ───────────────────────────────
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:ital,wght@0,300;0,400;0,500;0,600;0,700;1,400&display=swap');
+
 // ─── CSS Custom Properties — Monokai Default Theme ──────────────────────
 :root {
   // ── Brand Colors (Cortex-ID signature palette) ──────────────────────────────
@@ -11,6 +14,7 @@
   --bg-tertiary: #171816;
   --bg-surface: #3e3d32;
   --bg-hover: #49483e;
+  --bg-glass: rgba(39, 40, 34, 0.85);
 
   // Text
   --text-primary: #f8f8f2;
@@ -30,6 +34,7 @@
   // Borders
   --border-color: #3e3d32;
   --border-subtle: #49483e;
+  --border-focus: var(--accent-primary);
 
   // Typography
   --font-mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', 'Consolas', monospace;
@@ -44,19 +49,24 @@
   --statusbar-height: 22px;
 
   // Transitions
-  --transition-fast: 0.1s ease;
-  --transition-normal: 0.2s ease;
-  --transition-slow: 0.3s ease;
+  --transition-fast: 0.12s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-normal: 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-slow: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 
   // Shadows
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
-  --shadow-md: 0 4px 8px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.35), 0 1px 2px rgba(0, 0, 0, 0.25);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.5), 0 4px 8px rgba(0, 0, 0, 0.35);
+  --shadow-glow-green: 0 0 16px rgba(166, 226, 46, 0.25);
+  --shadow-glow-blue: 0 0 16px rgba(0, 136, 255, 0.3);
 
   // Border radius
   --radius-sm: 4px;
   --radius-md: 6px;
-  --radius-lg: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-pill: 999px;
 }
 
 // ─── Reset & Base ─────────────────────────────────────────────────────────────
@@ -142,8 +152,8 @@ body.has-bg-image .statusbar {
 
 // ─── Scrollbars ───────────────────────────────────────────────────────────────
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
@@ -151,16 +161,28 @@ body.has-bg-image .statusbar {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--bg-hover);
-  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-pill);
+  transition: background var(--transition-fast);
 
   &:hover {
-    background: var(--text-muted);
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  &:active {
+    background: var(--accent-primary);
+    opacity: 0.6;
   }
 }
 
 ::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+// Firefox scrollbar
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
 }
 
 // ─── Typography ───────────────────────────────────────────────────────────────
@@ -183,11 +205,12 @@ a {
 :focus-visible {
   outline: 2px solid var(--accent-primary);
   outline-offset: 2px;
+  border-radius: var(--radius-sm);
 }
 
 // ─── Selection ────────────────────────────────────────────────────────────────
 ::selection {
-  background: rgba(137, 180, 250, 0.3);
+  background: rgba(166, 226, 46, 0.2);
   color: var(--text-primary);
 }
 
@@ -249,7 +272,18 @@ a {
 @keyframes slideInUp {
   from {
     opacity: 0;
-    transform: translateY(8px);
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
   }
   to {
     opacity: 1;
@@ -268,9 +302,45 @@ a {
   }
 }
 
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
 @keyframes pulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.5; }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(166, 226, 46, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 0 6px rgba(166, 226, 46, 0);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .fade-in {
@@ -283,6 +353,10 @@ a {
 
 .slide-in {
   animation: slideIn var(--transition-normal);
+}
+
+.scale-in {
+  animation: scaleIn var(--transition-normal);
 }
 
 // Background is rendered globally by BackgroundComponent (position: fixed)

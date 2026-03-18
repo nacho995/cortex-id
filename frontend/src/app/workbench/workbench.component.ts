@@ -300,19 +300,33 @@ import { LayoutService } from '../core/layout.service';
       display: flex;
       align-items: center;
       height: var(--titlebar-height);
-      background: var(--bg-tertiary);
-      border-bottom: 1px solid var(--border-color);
+      background: linear-gradient(180deg, var(--bg-tertiary) 0%, color-mix(in srgb, var(--bg-tertiary) 90%, var(--bg-secondary)) 100%);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
       flex-shrink: 0;
       -webkit-app-region: drag;
       user-select: none;
       padding: 0 12px;
       gap: 12px;
+      position: relative;
+
+      /* Subtle bottom glow line */
+      &::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 1px;
+        background: linear-gradient(90deg, transparent, rgba(166, 226, 46, 0.15), transparent);
+        pointer-events: none;
+      }
     }
 
     .titlebar-controls {
       display: flex;
-      gap: 6px;
+      gap: 7px;
       -webkit-app-region: no-drag;
+      align-items: center;
     }
 
     .window-btn {
@@ -321,13 +335,22 @@ import { LayoutService } from '../core/layout.service';
       border-radius: 50%;
       border: none;
       cursor: pointer;
-      transition: opacity var(--transition-fast);
+      transition: filter var(--transition-fast), transform var(--transition-fast);
+      position: relative;
 
-      &.close { background: #ff5f57; }
-      &.minimize { background: #febc2e; }
-      &.maximize { background: #28c840; }
+      &.close { background: #ff5f57; box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset; }
+      &.minimize { background: #febc2e; box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset; }
+      &.maximize { background: #28c840; box-shadow: 0 0 0 1px rgba(0,0,0,0.15) inset; }
 
-      &:hover { opacity: 0.8; }
+      &:hover {
+        filter: brightness(1.15);
+        transform: scale(1.1);
+      }
+
+      &:active {
+        filter: brightness(0.85);
+        transform: scale(0.95);
+      }
     }
 
     .titlebar-title {
@@ -335,7 +358,7 @@ import { LayoutService } from '../core/layout.service';
       display: flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: 8px;
       font-size: 12px;
     }
 
@@ -345,28 +368,31 @@ import { LayoutService } from '../core/layout.service';
     }
 
     .cortex-brand {
-      background: linear-gradient(90deg, #FF0040, #00FF88, #FF0040);
-      background-size: 200% auto;
+      background: linear-gradient(90deg, #FF0040, #00FF88, #66d9ef, #FF0040);
+      background-size: 300% auto;
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      animation: gradientShift 3s linear infinite;
+      animation: gradientShift 4s linear infinite;
       font-weight: 700;
-      letter-spacing: 1.5px;
+      letter-spacing: 2px;
+      font-size: 11px;
     }
 
     @keyframes gradientShift {
       0%   { background-position: 0% center; }
-      100% { background-position: 200% center; }
+      100% { background-position: 300% center; }
     }
 
     .project-name {
       color: var(--text-muted);
+      font-size: 11px;
+      font-weight: 400;
     }
 
     .titlebar-actions {
       display: flex;
-      gap: 4px;
+      gap: 3px;
       -webkit-app-region: no-drag;
     }
 
@@ -378,19 +404,25 @@ import { LayoutService } from '../core/layout.service';
       height: 28px;
       background: transparent;
       border: none;
-      border-radius: var(--radius-sm);
+      border-radius: var(--radius-md);
       color: var(--text-muted);
       cursor: pointer;
-      transition: background var(--transition-fast), color var(--transition-fast);
+      transition: background var(--transition-fast), color var(--transition-fast), transform var(--transition-fast);
 
       &:hover {
-        background: var(--bg-hover);
+        background: rgba(255, 255, 255, 0.08);
         color: var(--text-primary);
+        transform: scale(1.05);
+      }
+
+      &:active {
+        transform: scale(0.95);
       }
 
       &.active {
-        background: var(--bg-surface);
+        background: rgba(166, 226, 46, 0.12);
         color: var(--accent-primary);
+        box-shadow: 0 0 0 1px rgba(166, 226, 46, 0.2) inset;
       }
     }
 
@@ -472,7 +504,8 @@ import { LayoutService } from '../core/layout.service';
       overflow: hidden;
       min-width: 240px;
       max-width: 600px;
-      border-left: 1px solid var(--border-color);
+      border-left: 1px solid rgba(255, 255, 255, 0.06);
+      animation: slideInRight var(--transition-normal);
     }
 
     /* ── AI Panel Toggle Button ───────────────────────────────────────────────── */
@@ -509,22 +542,41 @@ import { LayoutService } from '../core/layout.service';
     .resize-handle {
       flex-shrink: 0;
       background: transparent;
-      transition: background var(--transition-fast);
+      transition: background var(--transition-normal), opacity var(--transition-normal);
       z-index: 10;
+      position: relative;
 
-      &:hover, &.dragging {
+      &::after {
+        content: '';
+        position: absolute;
+        inset: 0;
         background: var(--accent-primary);
+        opacity: 0;
+        transition: opacity var(--transition-normal);
+        border-radius: var(--radius-pill);
+      }
+
+      &:hover::after, &.dragging::after {
+        opacity: 0.6;
       }
 
       &.resize-handle-h {
         width: 4px;
         cursor: col-resize;
+
+        &::after {
+          inset: 20% 1px;
+        }
       }
 
       &.resize-handle-v {
         height: 4px;
         cursor: row-resize;
         width: 100%;
+
+        &::after {
+          inset: 1px 20%;
+        }
       }
     }
 
@@ -533,19 +585,21 @@ import { LayoutService } from '../core/layout.service';
       display: flex;
       align-items: center;
       height: var(--statusbar-height);
-      background: var(--accent-primary);
-      color: var(--bg-tertiary);
+      background: #0d1117;
+      border-top: 1px solid rgba(0, 136, 255, 0.4);
+      color: var(--text-secondary);
       font-size: 11px;
       flex-shrink: 0;
       padding: 0 8px;
       gap: 8px;
+      font-family: var(--font-sans);
     }
 
     .statusbar-left,
     .statusbar-right {
       display: flex;
       align-items: center;
-      gap: 4px;
+      gap: 2px;
     }
 
     .statusbar-center {
@@ -558,40 +612,46 @@ import { LayoutService } from '../core/layout.service';
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 20px;
-      height: 20px;
+      width: 22px;
+      height: 18px;
       background: transparent;
       border: none;
       border-radius: var(--radius-sm);
-      color: var(--bg-tertiary);
+      color: var(--text-muted);
       cursor: pointer;
-      opacity: 0.8;
+      transition: background var(--transition-fast), color var(--transition-fast);
 
       &:hover {
-        opacity: 1;
-        background: rgba(0, 0, 0, 0.15);
+        background: rgba(255, 255, 255, 0.08);
+        color: var(--text-primary);
       }
     }
 
     .statusbar-info {
-      opacity: 0.8;
+      color: var(--text-muted);
+      font-size: 10px;
+      letter-spacing: 0.02em;
     }
 
     .statusbar-saved {
       font-weight: 600;
-      color: var(--bg-tertiary);
+      color: var(--accent-primary);
       animation: fadeIn var(--transition-fast);
+      font-size: 10px;
     }
 
     .statusbar-badge {
       padding: 1px 6px;
-      border-radius: var(--radius-sm);
-      font-size: 10px;
+      border-radius: var(--radius-pill);
+      font-size: 9px;
       font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
 
       &.warning {
-        background: var(--accent-warning);
-        color: var(--bg-tertiary);
+        background: rgba(230, 219, 116, 0.15);
+        color: var(--accent-warning);
+        border: 1px solid rgba(230, 219, 116, 0.3);
       }
     }
 
@@ -603,21 +663,27 @@ import { LayoutService } from '../core/layout.service';
       width: 40px;
       height: 40px;
       border-radius: 50%;
-      background: var(--accent-primary);
-      color: var(--bg-tertiary);
+      background: rgba(0, 136, 255, 0.9);
+      backdrop-filter: blur(12px);
+      color: #ffffff;
       font-size: 18px;
-      border: none;
+      border: 1px solid rgba(0, 136, 255, 0.5);
       cursor: pointer;
       z-index: 9999;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-      transition: transform 0.15s ease, box-shadow 0.15s ease;
+      box-shadow: 0 4px 16px rgba(0, 136, 255, 0.4), 0 2px 4px rgba(0, 0, 0, 0.3);
+      transition: transform var(--transition-spring), box-shadow var(--transition-normal), background var(--transition-fast);
 
       &:hover {
-        transform: scale(1.1);
-        box-shadow: 0 6px 16px rgba(0, 0, 0, 0.5);
+        transform: scale(1.12) rotate(30deg);
+        box-shadow: 0 6px 24px rgba(0, 136, 255, 0.6), 0 2px 8px rgba(0, 0, 0, 0.4);
+        background: rgba(0, 136, 255, 1);
+      }
+
+      &:active {
+        transform: scale(0.95);
       }
     }
 
@@ -629,22 +695,30 @@ import { LayoutService } from '../core/layout.service';
       transform: translateY(-50%);
       width: 28px;
       height: 64px;
-      background: var(--accent-primary);
-      color: var(--bg-tertiary);
+      background: rgba(0, 136, 255, 0.85);
+      backdrop-filter: blur(12px);
+      color: #ffffff;
       font-size: 16px;
       font-weight: bold;
-      border: none;
-      border-radius: 8px 0 0 8px;
+      border: 1px solid rgba(0, 136, 255, 0.4);
+      border-right: none;
+      border-radius: 10px 0 0 10px;
       cursor: pointer;
       z-index: 9999;
       display: flex;
       align-items: center;
       justify-content: center;
-      box-shadow: -4px 0 12px rgba(0, 0, 0, 0.3);
-      transition: width 0.15s ease;
+      box-shadow: -4px 0 16px rgba(0, 136, 255, 0.35), -2px 0 6px rgba(0, 0, 0, 0.3);
+      transition: width var(--transition-normal), background var(--transition-fast), box-shadow var(--transition-normal);
 
       &:hover {
         width: 36px;
+        background: rgba(0, 136, 255, 1);
+        box-shadow: -6px 0 24px rgba(0, 136, 255, 0.5), -2px 0 8px rgba(0, 0, 0, 0.4);
+      }
+
+      &:active {
+        width: 24px;
       }
     }
 

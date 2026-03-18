@@ -107,30 +107,32 @@ import { IconComponent } from '../../shared/ui/icon/icon.component';
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 4px 12px;
-      background: var(--bg-secondary);
-      border-bottom: 1px solid var(--border-color);
+      padding: 0 12px;
+      background: color-mix(in srgb, var(--bg-secondary) 90%, var(--bg-tertiary));
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      border-top: 2px solid rgba(166, 226, 46, 0.15);
       flex-shrink: 0;
-      height: 30px;
+      height: 32px;
     }
 
     .terminal-title {
       display: flex;
       align-items: center;
       gap: 6px;
-      font-size: 11px;
-      font-weight: 600;
-      letter-spacing: 0.08em;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
       color: var(--text-muted);
       text-transform: uppercase;
     }
 
     .terminal-pid {
       font-size: 10px;
-      color: var(--text-muted);
+      color: rgba(166, 226, 46, 0.5);
       font-weight: 400;
       letter-spacing: 0;
       text-transform: none;
+      font-family: var(--font-mono);
     }
 
     .terminal-actions {
@@ -149,9 +151,10 @@ import { IconComponent } from '../../shared/ui/icon/icon.component';
       border-radius: var(--radius-sm);
       color: var(--text-muted);
       cursor: pointer;
+      transition: background var(--transition-fast), color var(--transition-fast);
 
       &:hover {
-        background: var(--bg-hover);
+        background: rgba(255, 255, 255, 0.07);
         color: var(--text-primary);
       }
     }
@@ -159,7 +162,7 @@ import { IconComponent } from '../../shared/ui/icon/icon.component';
     .terminal-container {
       flex: 1;
       overflow: hidden;
-      padding: 4px;
+      padding: 4px 6px;
     }
 
     .terminal-placeholder {
