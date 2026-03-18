@@ -595,9 +595,9 @@ import { ExtensionsService } from '../core/extensions.service';
       display: flex;
       align-items: center;
       height: var(--statusbar-height);
-      background: var(--bg-tertiary);
-      border-top: 1px solid rgba(0, 136, 255, 0.4);
-      color: var(--text-secondary);
+      background: #1f6feb;
+      border-top: none;
+      color: #fff;
       font-size: 11px;
       flex-shrink: 0;
       padding: 0 8px;
@@ -627,18 +627,18 @@ import { ExtensionsService } from '../core/extensions.service';
       background: transparent;
       border: none;
       border-radius: var(--radius-sm);
-      color: var(--text-muted);
+      color: rgba(255, 255, 255, 0.7);
       cursor: pointer;
       transition: background var(--transition-fast), color var(--transition-fast);
 
       &:hover {
-        background: rgba(255, 255, 255, 0.08);
-        color: var(--text-primary);
+        background: rgba(255, 255, 255, 0.15);
+        color: #fff;
       }
     }
 
     .statusbar-info {
-      color: var(--text-muted);
+      color: rgba(255, 255, 255, 0.85);
       font-size: 10px;
       letter-spacing: 0.02em;
     }

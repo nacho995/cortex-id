@@ -151,7 +151,7 @@ body.has-bg-image {
   /* ── Everything transparent — NO individual backgrounds ── */
   .titlebar,
   .sidebar-area, .center-area, .editor-area,
-  .bottom-panel-area, .ai-panel-area, .statusbar,
+  .bottom-panel-area, .ai-panel-area,
   app-sidebar, app-editor, app-panels, app-chat-panel,
   .sidebar, .sidebar-panel, .sidebar-content, .file-tree, .explorer-panel,
   .explorer-header, .extensions-panel, .activity-bar,
@@ -173,9 +173,9 @@ body.has-bg-image {
     border-bottom: none !important;
   }
 
-  /* ── Statusbar — match IntelliJ bottom bar ── */
+  /* ── Statusbar — keep blue even with wallpaper ── */
   .statusbar {
-    background: rgba(0, 0, 0, 0.3) !important;
+    background: rgba(31, 111, 235, 0.85) !important;
     border-top: none !important;
   }
 
@@ -567,16 +567,16 @@ a {
   }
 }
 
-/* Statusbar legible */
+/* Statusbar — solid blue like VS Code */
 .statusbar {
-  background: var(--bg-tertiary) !important;
-  color: var(--text-secondary) !important;
-  border-top: 1px solid var(--accent-primary) !important;
+  background: #1f6feb !important;
+  color: #fff !important;
+  border-top: none !important;
 }
 
 .statusbar-btn {
-  color: var(--text-secondary) !important;
-  &:hover { color: var(--text-primary) !important; }
+  color: rgba(255, 255, 255, 0.7) !important;
+  &:hover { color: #fff !important; }
 }
 
 /* ── Titlebar buttons — visibles siempre ── */
