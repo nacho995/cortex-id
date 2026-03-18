@@ -1035,12 +1035,20 @@ export class WorkbenchComponent implements OnInit {
     this.currentProjectName.set(path.split(/[\\/]/).pop() ?? path);
     localStorage.setItem('cortex.lastProject', path);
 
-    // Fetch top-level entries to give the AI project-wide awareness
+    // Fetch full file tree to give the AI project-wide awareness
     try {
-      const result = await this.ipc.listDirectory({ path, recursive: false });
-      const files = result.entries.map(
-        (e) => (e.isDirectory ? '📁 ' : '📄 ') + e.name
-      );
+      const result = await this.ipc.listDirectory({ path, recursive: true });
+      const files = result.entries
+        .filter(e => {
+          // Skip common non-essential directories
+          const skip = ['node_modules', '.git', 'dist', 'build', 'target', '.angular', '.next', '__pycache__', '.venv', 'coverage'];
+          return !skip.some(s => e.name.includes(s));
+        })
+        .slice(0, 200) // Limit to 200 entries to avoid huge lists
+        .map(e => {
+          const relativePath = e.name.startsWith(path) ? e.name.substring(path.length + 1) : e.name;
+          return (e.isDirectory ? '📁 ' : '📄 ') + relativePath;
+        });
       this.projectFileList.set(files);
     } catch {
       this.projectFileList.set([]);

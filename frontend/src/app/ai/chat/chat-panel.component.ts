@@ -1505,7 +1505,7 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
 
     // Include project file list for AI project-wide awareness
     if (this.projectFiles.length > 0) {
-      messageContent += `\n[Project files: ${this.projectFiles.slice(0, 30).join(', ')}]`;
+      messageContent += `\n[Project files:\n${this.projectFiles.join('\n')}]`;
     }
 
     // Agent mode: include full file content
