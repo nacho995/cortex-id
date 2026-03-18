@@ -31,6 +31,7 @@ import { OrchestratorPlanComponent } from '../orchestrator/orchestrator-plan.com
 import { AgentMindMapComponent } from '../mind-map/agent-mind-map.component';
 import {
   WsMessageType,
+  type AgentActionResultPayload,
   type ChatMessagePayload,
   type StreamChunkPayload,
   type AgentStatusPayload,
@@ -1392,6 +1393,42 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
           }
           return agents.map((a) => (a.agentId === agent.agentId ? agent : a));
         });
+        this.cdr.markForCheck();
+      });
+
+    /* Agent autonomous action results */
+    this.wsService
+      .on<AgentActionResultPayload>(WsMessageType.AGENT_ACTION_RESULT)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((msg) => {
+        const result = msg.payload;
+        const icon   = result.success ? '✅' : '❌';
+        let content  = `${icon} ${result.message}`;
+
+        if (result.output) {
+          content += '\n```\n' + result.output.trim() + '\n```';
+        }
+
+        if (result.files && result.files.length > 0) {
+          content += '\n\n**Files created:**\n' + result.files.map(f => `- \`${f}\``).join('\n');
+        }
+
+        this.messages.update(msgs => [
+          ...msgs,
+          {
+            id:        crypto.randomUUID(),
+            role:      'system' as const,
+            content,
+            timestamp: msg.timestamp,
+          },
+        ]);
+
+        // Notify workbench to refresh the file tree when new files were created
+        if (result.success && result.files && result.files.length > 0) {
+          this.fileCreated.emit(result.message);
+        }
+
+        this.shouldScrollToBottom = true;
         this.cdr.markForCheck();
       });
   }

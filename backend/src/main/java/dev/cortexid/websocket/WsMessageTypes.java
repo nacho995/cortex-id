@@ -37,6 +37,9 @@ public final class WsMessageTypes {
     /** Java → Angular: Agent task progress update. */
     public static final String AGENT_PROGRESS = "agent:progress";
 
+    /** Java → Angular: Result of an autonomous agent action (file/dir/command). */
+    public static final String AGENT_ACTION_RESULT = "agent:action-result";
+
     // ── File Indexer ──────────────────────────────────────────────────────────
     /** Java → Angular: Indexing progress update. */
     public static final String FILE_INDEX_STATUS = "file:index-status";

@@ -36,6 +36,10 @@ export enum WsMessageType {
   AGENT_STATUS   = 'agent:status',
   AGENT_PROGRESS = 'agent:progress',
 
+  // Agent autonomous actions
+  AGENT_ACTION_REQUEST = 'agent:action-request',
+  AGENT_ACTION_RESULT  = 'agent:action-result',
+
   // Indexer
   FILE_INDEX_STATUS   = 'file:index-status',
   FILE_INDEX_COMPLETE = 'file:index-complete',
@@ -194,6 +198,27 @@ export interface AgentStatusPayload {
 }
 
 // ---------------------------------------------------------------------------
+// Agent action payloads
+// ---------------------------------------------------------------------------
+
+/**
+ * Payload for AGENT_ACTION_RESULT — sent from Java to Angular.
+ * Reports the outcome of an autonomous action executed by the AI agent.
+ */
+export interface AgentActionResultPayload {
+  /** Whether the action completed successfully. */
+  success: boolean;
+  /** Human-readable result message. */
+  message: string;
+  /** Terminal output for run_command actions. */
+  output?: string;
+  /** Exit code for run_command actions. */
+  exitCode?: number;
+  /** List of files created (for create_project actions). */
+  files?: string[];
+}
+
+// ---------------------------------------------------------------------------
 // Indexer payloads
 // ---------------------------------------------------------------------------
 
@@ -343,6 +368,7 @@ export type AnyWsMessage =
   | WsMessage<ChatResponsePayload>
   | WsMessage<StreamChunkPayload>
   | WsMessage<AgentStatusPayload>
+  | WsMessage<AgentActionResultPayload>
   | WsMessage<FileIndexStatusPayload>
   | WsMessage<ErrorPayload>
   | WsMessage<ModelsListPayload>

@@ -1,5 +1,9 @@
 package dev.cortexid.ai.orchestrator;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import dev.cortexid.ai.AgentActionService;
 import dev.cortexid.ai.AnthropicClient;
 import dev.cortexid.ai.AnthropicClient.ConversationMessage;
 import dev.cortexid.ai.AiModelConfig;
@@ -21,6 +25,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * AI Orchestration Service.
@@ -40,6 +46,12 @@ public class OrchestrationService {
     private static final int MAX_CONTEXT_MESSAGES = 20;
     private static final String AGENT_ID = "cortex-assistant";
 
+    /** Matches ```action ... ``` fenced blocks in AI responses. */
+    private static final Pattern ACTION_BLOCK_PATTERN =
+        Pattern.compile("```action\\s*\\n(.*?)```", Pattern.DOTALL);
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
     private final AnthropicClient anthropicClient;
     private final OpenAIClient openAIClient;
     private final GoogleClient googleClient;
@@ -47,6 +59,7 @@ public class OrchestrationService {
     private final ConversationRepository conversationRepository;
     private final SessionRegistry sessionRegistry;
     private final AiModelConfig aiModelConfig;
+    private final AgentActionService agentActionService;
 
     public OrchestrationService(
         AnthropicClient anthropicClient,
@@ -55,7 +68,8 @@ public class OrchestrationService {
         OllamaClient ollamaClient,
         ConversationRepository conversationRepository,
         SessionRegistry sessionRegistry,
-        AiModelConfig aiModelConfig
+        AiModelConfig aiModelConfig,
+        AgentActionService agentActionService
     ) {
         this.anthropicClient = anthropicClient;
         this.openAIClient = openAIClient;
@@ -64,6 +78,7 @@ public class OrchestrationService {
         this.conversationRepository = conversationRepository;
         this.sessionRegistry = sessionRegistry;
         this.aiModelConfig = aiModelConfig;
+        this.agentActionService = agentActionService;
     }
 
     /**
@@ -228,8 +243,10 @@ public class OrchestrationService {
         switch (mode) {
             case "agent" -> prompt.append("""
                 
-                MODE: AGENT — You are an autonomous coding agent. You CAN create, modify, and delete files.
+                MODE: AGENT — You are an autonomous coding agent. You CAN create, modify, and delete files,
+                create directories, run shell commands, and scaffold entire projects.
                 
+                ── FILE OPERATIONS (via <file> tags) ──────────────────────────────────────
                 When you need to create or modify a file, use this EXACT format:
                 
                 <file path="relative/path/to/file.ext" action="create">
@@ -243,14 +260,39 @@ public class OrchestrationService {
                 <file path="relative/path/to/file.ext" action="delete">
                 </file>
                 
+                ── MACHINE ACTIONS (via ```action blocks) ──────────────────────────────────
+                For directories, commands, and project scaffolding, use JSON action blocks:
+                
+                ```action
+                {"action":"create_directory","path":"/absolute/path/to/dir"}
+                ```
+                
+                ```action
+                {"action":"write_file","path":"/absolute/path/to/file.ext","content":"file content here"}
+                ```
+                
+                ```action
+                {"action":"run_command","command":"npm install","cwd":"/absolute/working/directory"}
+                ```
+                
+                ```action
+                {"action":"create_project","path":"/absolute/path/project-name","projectType":"mern"}
+                ```
+                
+                Supported projectType values: mern, spring, spring-boot, java, fastapi, python
+                
                 RULES FOR AGENT MODE:
-                - ALWAYS use <file> tags when creating or modifying files. This is how the IDE executes your changes.
+                - ALWAYS use <file> tags or ```action blocks when creating or modifying files.
                 - Include the COMPLETE file content inside the tags, not just the changed parts.
-                - Use relative paths from the project root.
-                - You can create multiple files in one response.
-                - After file operations, briefly explain what you did and why.
-                - If the user asks you to "create", "make", "generate", "write", "add" a file — USE <file> TAGS.
+                - Use ABSOLUTE paths in ```action blocks. The user's home directory is \
+                """ + System.getProperty("user.home") + """
+                .
+                - Use relative paths in <file> tags (relative to project root).
+                - You can include multiple action blocks and file tags in one response.
+                - After all actions, briefly explain what you did and why.
+                - If the user asks you to "create", "make", "generate", "write", "add" a file — USE the tags/blocks.
                 - Do NOT just show code in a regular code block and tell the user to create it manually.
+                - For creating full projects (MERN, Spring Boot, FastAPI), prefer create_project action.
                 """);
 
             case "edit" -> prompt.append("""
@@ -451,6 +493,9 @@ public class OrchestrationService {
         // Send final chunk with done=true
         sendStreamChunk(session, "", conversationId, true);
 
+        // Parse and execute any ```action blocks embedded in the AI response
+        executeActionsFromResponse(fullResponse, session);
+
         // Send stream end
         sessionRegistry.sendTo(session, WsMessage.create(
             WsMessageTypes.CHAT_STREAM_END,
@@ -464,6 +509,47 @@ public class OrchestrationService {
         sendAgentStatus(session, "done", "Response complete", null);
 
         log.info("Stream complete: conversationId={}, responseLength={}", conversationId, fullResponse.length());
+    }
+
+    /**
+     * Scan the AI response for {@code ```action} fenced blocks, parse each as JSON,
+     * execute the action via {@link AgentActionService}, and push the result to the
+     * frontend as an {@code AGENT_ACTION_RESULT} WebSocket message.
+     *
+     * <p>This runs synchronously inside the async completion callback — actions are
+     * executed sequentially in the order they appear in the response.
+     */
+    private void executeActionsFromResponse(String response, WebSocketSession session) {
+        Matcher matcher = ACTION_BLOCK_PATTERN.matcher(response);
+        while (matcher.find()) {
+            String actionJson = matcher.group(1).trim();
+            try {
+                JsonNode action = OBJECT_MAPPER.readTree(actionJson);
+                String type = action.path("action").asText();
+                if (type.isBlank()) {
+                    log.warn("[OrchestrationService] Action block missing 'action' field: {}", actionJson);
+                    continue;
+                }
+
+                log.info("[OrchestrationService] Executing agent action: type={}", type);
+                ObjectNode result = agentActionService.executeAction(type, action);
+
+                sessionRegistry.sendTo(session, WsMessage.create(
+                    WsMessageTypes.AGENT_ACTION_RESULT, result
+                ));
+            } catch (Exception e) {
+                log.error("[OrchestrationService] Failed to parse/execute action block: {} — {}",
+                    actionJson, e.getMessage());
+
+                // Send a failure result so the frontend can display it
+                ObjectNode errorResult = OBJECT_MAPPER.createObjectNode();
+                errorResult.put("success", false);
+                errorResult.put("message", "Failed to execute action: " + e.getMessage());
+                sessionRegistry.sendTo(session, WsMessage.create(
+                    WsMessageTypes.AGENT_ACTION_RESULT, errorResult
+                ));
+            }
+        }
     }
 
     private void onStreamError(WebSocketSession session, String conversationId, String error) {
