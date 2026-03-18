@@ -61,7 +61,11 @@ app.whenReady().then(async () => {
   // The CDN (openvsx.eclipsecontent.org) doesn't set CORS headers,
   // which blocks fetch() in the renderer process.
   session.defaultSession.webRequest.onHeadersReceived(
-    { urls: ['https://*.open-vsx.org/*', 'https://*.eclipsecontent.org/*', 'https://open-vsx.org/*'] },
+    { urls: [
+      'https://*.open-vsx.org/*', 'https://*.eclipsecontent.org/*', 'https://open-vsx.org/*',
+      'https://huggingface.co/*', 'https://*.huggingface.co/*',
+      'https://cdn-lfs.huggingface.co/*', 'https://cdn-lfs-us-1.huggingface.co/*',
+    ] },
     (details, callback) => {
       callback({
         responseHeaders: {
