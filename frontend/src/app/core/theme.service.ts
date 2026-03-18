@@ -481,7 +481,7 @@ export class ThemeService {
       // can pick them up for opacity and blur rendering.
       root.setProperty('--bg-image-url', `url(${config.imageUrl})`);
       root.setProperty('--bg-opacity', String((config.opacity ?? 20) / 100));
-      root.setProperty('--bg-blur', `${config.blur ?? 4}px`);
+      root.setProperty('--bg-blur', `${config.blur ?? 0}px`);
 
       // Clear any direct body background so the pseudo-element shows through
       body.style.backgroundImage = '';
