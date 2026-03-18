@@ -819,7 +819,6 @@ export class EditorComponent implements AfterViewInit, OnDestroy {
     if (!name) return;
 
     try {
-      // Ask user where to save
       const result = await this.ipc.openDialog({
         title: 'Choose location for new project',
         properties: ['openDirectory'],
@@ -830,18 +829,35 @@ export class EditorComponent implements AfterViewInit, OnDestroy {
       const parentDir = result.filePaths[0];
       const projectPath = parentDir + '/' + name;
 
-      // Create directory
+      // Create root directory
       await this.ipc.createDirectory({ path: projectPath });
 
-      // Create basic files based on type
+      // Create all files, ensuring parent dirs exist
       const files = this.getProjectFiles(type, name);
+      const createdDirs = new Set<string>();
+
       for (const file of files) {
-        await this.ipc.writeFile({ path: projectPath + '/' + file.path, content: file.content });
+        const fullPath = projectPath + '/' + file.path;
+        // Extract directory from file path
+        const lastSlash = fullPath.lastIndexOf('/');
+        const dir = fullPath.substring(0, lastSlash);
+
+        // Create directory if not already created
+        if (!createdDirs.has(dir)) {
+          try {
+            await this.ipc.createDirectory({ path: dir });
+          } catch { /* dir might already exist */ }
+          createdDirs.add(dir);
+        }
+
+        // Write file
+        await this.ipc.writeFile({ path: fullPath, content: file.content });
       }
 
       // Open the project
       this.folderOpened.emit(projectPath);
       this.showNewProjectDialog.set(false);
+      this.newProjectName.set('');
     } catch (err) {
       console.error('[Editor] Failed to create project:', err);
     }
@@ -851,12 +867,210 @@ export class EditorComponent implements AfterViewInit, OnDestroy {
     switch (type) {
       case 'mern':
         return [
-          { path: 'package.json', content: JSON.stringify({ name, version: '1.0.0', scripts: { dev: 'node server.js' }, dependencies: { express: '^4.18.0', mongoose: '^8.0.0', cors: '^2.8.5', dotenv: '^16.0.0' } }, null, 2) },
-          { path: 'server.js', content: `const express = require('express');\nconst cors = require('cors');\nconst app = express();\napp.use(cors());\napp.use(express.json());\napp.get('/', (req, res) => res.json({ message: 'API running' }));\nconst PORT = process.env.PORT || 5000;\napp.listen(PORT, () => console.log('Server on port ' + PORT));\n` },
-          { path: '.env', content: 'PORT=5000\nMONGODB_URI=mongodb://localhost:27017/' + name },
-          { path: '.gitignore', content: 'node_modules/\n.env\n' },
-          { path: 'client/package.json', content: JSON.stringify({ name: name + '-client', version: '1.0.0', private: true, dependencies: { react: '^18.0.0', 'react-dom': '^18.0.0', 'react-scripts': '^5.0.0', axios: '^1.6.0' }, scripts: { start: 'react-scripts start', build: 'react-scripts build' }, proxy: 'http://localhost:5000' }, null, 2) },
-          { path: 'README.md', content: `# ${name}\n\nMERN Stack project.\n\n## Setup\n\`\`\`bash\nnpm install\ncd client && npm install\n\`\`\`\n\n## Run\n\`\`\`bash\nnpm run dev       # Backend\ncd client && npm start  # Frontend\n\`\`\`\n` },
+          // Backend
+          { path: 'package.json', content: JSON.stringify({
+            name, version: '1.0.0',
+            scripts: { dev: 'node server.js', start: 'node server.js' },
+            dependencies: { express: '^4.18.0', mongoose: '^8.0.0', cors: '^2.8.5', dotenv: '^16.0.0', bcryptjs: '^2.4.3', jsonwebtoken: '^9.0.0' }
+          }, null, 2) },
+          { path: 'server.js', content: [
+            "const express = require('express');",
+            "const cors = require('cors');",
+            "const mongoose = require('mongoose');",
+            "require('dotenv').config();",
+            "",
+            "const app = express();",
+            "app.use(cors());",
+            "app.use(express.json());",
+            "",
+            "// Routes",
+            "app.use('/api/auth', require('./routes/auth'));",
+            "app.use('/api/items', require('./routes/items'));",
+            "",
+            "// Connect to MongoDB",
+            "mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/" + name + "')",
+            "  .then(() => console.log('MongoDB connected'))",
+            "  .catch(err => console.error('MongoDB error:', err));",
+            "",
+            "const PORT = process.env.PORT || 5000;",
+            "app.listen(PORT, () => console.log(`Server running on port ${PORT}`));",
+          ].join('\n') },
+          { path: '.env', content: 'PORT=5000\nMONGODB_URI=mongodb://localhost:27017/' + name + '\nJWT_SECRET=your-secret-key' },
+          { path: '.gitignore', content: 'node_modules/\n.env\nclient/build/\n' },
+          // Models
+          { path: 'models/User.js', content: [
+            "const mongoose = require('mongoose');",
+            "const bcrypt = require('bcryptjs');",
+            "",
+            "const UserSchema = new mongoose.Schema({",
+            "  name: { type: String, required: true },",
+            "  email: { type: String, required: true, unique: true },",
+            "  password: { type: String, required: true },",
+            "}, { timestamps: true });",
+            "",
+            "UserSchema.pre('save', async function(next) {",
+            "  if (!this.isModified('password')) return next();",
+            "  this.password = await bcrypt.hash(this.password, 10);",
+            "  next();",
+            "});",
+            "",
+            "module.exports = mongoose.model('User', UserSchema);",
+          ].join('\n') },
+          { path: 'models/Item.js', content: [
+            "const mongoose = require('mongoose');",
+            "",
+            "const ItemSchema = new mongoose.Schema({",
+            "  title: { type: String, required: true },",
+            "  description: { type: String, default: '' },",
+            "  completed: { type: Boolean, default: false },",
+            "  user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },",
+            "}, { timestamps: true });",
+            "",
+            "module.exports = mongoose.model('Item', ItemSchema);",
+          ].join('\n') },
+          // Routes
+          { path: 'routes/auth.js', content: [
+            "const router = require('express').Router();",
+            "const bcrypt = require('bcryptjs');",
+            "const jwt = require('jsonwebtoken');",
+            "const User = require('../models/User');",
+            "",
+            "// Register",
+            "router.post('/register', async (req, res) => {",
+            "  try {",
+            "    const { name, email, password } = req.body;",
+            "    const exists = await User.findOne({ email });",
+            "    if (exists) return res.status(400).json({ msg: 'User already exists' });",
+            "    const user = new User({ name, email, password });",
+            "    await user.save();",
+            "    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });",
+            "    res.json({ token, user: { id: user._id, name, email } });",
+            "  } catch (err) { res.status(500).json({ msg: err.message }); }",
+            "});",
+            "",
+            "// Login",
+            "router.post('/login', async (req, res) => {",
+            "  try {",
+            "    const { email, password } = req.body;",
+            "    const user = await User.findOne({ email });",
+            "    if (!user) return res.status(400).json({ msg: 'User not found' });",
+            "    const valid = await bcrypt.compare(password, user.password);",
+            "    if (!valid) return res.status(400).json({ msg: 'Invalid password' });",
+            "    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });",
+            "    res.json({ token, user: { id: user._id, name: user.name, email } });",
+            "  } catch (err) { res.status(500).json({ msg: err.message }); }",
+            "});",
+            "",
+            "module.exports = router;",
+          ].join('\n') },
+          { path: 'routes/items.js', content: [
+            "const router = require('express').Router();",
+            "const auth = require('../middleware/auth');",
+            "const Item = require('../models/Item');",
+            "",
+            "// Get all items for user",
+            "router.get('/', auth, async (req, res) => {",
+            "  const items = await Item.find({ user: req.user.id }).sort({ createdAt: -1 });",
+            "  res.json(items);",
+            "});",
+            "",
+            "// Create item",
+            "router.post('/', auth, async (req, res) => {",
+            "  const item = new Item({ ...req.body, user: req.user.id });",
+            "  await item.save();",
+            "  res.status(201).json(item);",
+            "});",
+            "",
+            "// Update item",
+            "router.put('/:id', auth, async (req, res) => {",
+            "  const item = await Item.findOneAndUpdate(",
+            "    { _id: req.params.id, user: req.user.id },",
+            "    req.body, { new: true }",
+            "  );",
+            "  res.json(item);",
+            "});",
+            "",
+            "// Delete item",
+            "router.delete('/:id', auth, async (req, res) => {",
+            "  await Item.findOneAndDelete({ _id: req.params.id, user: req.user.id });",
+            "  res.json({ msg: 'Deleted' });",
+            "});",
+            "",
+            "module.exports = router;",
+          ].join('\n') },
+          // Middleware
+          { path: 'middleware/auth.js', content: [
+            "const jwt = require('jsonwebtoken');",
+            "",
+            "module.exports = (req, res, next) => {",
+            "  const token = req.header('Authorization')?.replace('Bearer ', '');",
+            "  if (!token) return res.status(401).json({ msg: 'No token' });",
+            "  try {",
+            "    req.user = jwt.verify(token, process.env.JWT_SECRET);",
+            "    next();",
+            "  } catch { res.status(401).json({ msg: 'Invalid token' }); }",
+            "};",
+          ].join('\n') },
+          // Client (React)
+          { path: 'client/package.json', content: JSON.stringify({
+            name: name + '-client', version: '1.0.0', private: true,
+            dependencies: { react: '^18.0.0', 'react-dom': '^18.0.0', 'react-scripts': '^5.0.0', axios: '^1.6.0', 'react-router-dom': '^6.0.0' },
+            scripts: { start: 'react-scripts start', build: 'react-scripts build' },
+            proxy: 'http://localhost:5000'
+          }, null, 2) },
+          { path: 'client/public/index.html', content: [
+            '<!DOCTYPE html>',
+            '<html lang="en">',
+            '<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">',
+            '<title>' + name + '</title></head>',
+            '<body><div id="root"></div></body>',
+            '</html>',
+          ].join('\n') },
+          { path: 'client/src/index.js', content: [
+            "import React from 'react';",
+            "import ReactDOM from 'react-dom/client';",
+            "import App from './App';",
+            "import './index.css';",
+            "",
+            "ReactDOM.createRoot(document.getElementById('root')).render(",
+            "  <React.StrictMode><App /></React.StrictMode>",
+            ");",
+          ].join('\n') },
+          { path: 'client/src/App.js', content: [
+            "import React from 'react';",
+            "",
+            "function App() {",
+            "  return (",
+            "    <div style={{ padding: '2rem', fontFamily: 'sans-serif' }}>",
+            "      <h1>" + name + "</h1>",
+            "      <p>MERN Stack project ready.</p>",
+            "    </div>",
+            "  );",
+            "}",
+            "",
+            "export default App;",
+          ].join('\n') },
+          { path: 'client/src/index.css', content: [
+            "* { margin: 0; padding: 0; box-sizing: border-box; }",
+            "body { font-family: -apple-system, sans-serif; background: #0d1117; color: #c9d1d9; }",
+          ].join('\n') },
+          { path: 'README.md', content: [
+            '# ' + name,
+            '', '## MERN Stack Project', '',
+            '### Setup',
+            '```bash',
+            'npm install',
+            'cd client && npm install',
+            '```', '',
+            '### Run',
+            '```bash',
+            '# Terminal 1: Backend',
+            'npm run dev',
+            '',
+            '# Terminal 2: Frontend',
+            'cd client && npm start',
+            '```',
+          ].join('\n') },
         ];
       case 'spring-angular':
         return [
