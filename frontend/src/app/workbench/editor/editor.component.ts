@@ -152,6 +152,10 @@ const RUNNER_LABELS: Record<string, string> = {
                 <app-icon name="folder" [size]="16" />
                 Open Folder
               </button>
+              <button class="welcome-btn" (click)="newProject()">
+                <app-icon name="plus" [size]="16" />
+                New Project
+              </button>
             </div>
             <div class="welcome-shortcuts">
               <div class="shortcut">
@@ -185,6 +189,32 @@ const RUNNER_LABELS: Record<string, string> = {
           [class.hidden]="openTabs().length === 0"
         ></div>
       </div>
+
+      <!-- New Project Dialog -->
+      @if (showNewProjectDialog()) {
+        <div class="new-project-overlay" (click)="showNewProjectDialog.set(false)">
+          <div class="new-project-dialog" (click)="$event.stopPropagation()">
+            <h3>New Project</h3>
+            <input type="text" placeholder="Project name..." class="np-input"
+                   [value]="newProjectName()"
+                   (input)="newProjectName.set($any($event.target).value)" />
+            <div class="np-types">
+              @for (pt of projectTypes; track pt.id) {
+                <button class="np-type" [class.selected]="newProjectType() === pt.id"
+                        (click)="newProjectType.set(pt.id)">
+                  <span class="np-icon">{{ pt.icon }}</span>
+                  <span class="np-name">{{ pt.name }}</span>
+                  <span class="np-desc">{{ pt.desc }}</span>
+                </button>
+              }
+            </div>
+            <div class="np-actions">
+              <button class="np-cancel" (click)="showNewProjectDialog.set(false)">Cancel</button>
+              <button class="np-create" [disabled]="!newProjectName()" (click)="createProject()">Create Project</button>
+            </div>
+          </div>
+        </div>
+      }
 
       <!-- Status bar -->
       @if (activeTab()) {
@@ -395,6 +425,62 @@ const RUNNER_LABELS: Record<string, string> = {
       0%, 100% { opacity: 0.4; }
       50% { opacity: 0.6; }
     }
+
+    /* New Project Dialog */
+    .new-project-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.6); z-index: 9000;
+      display: flex; align-items: center; justify-content: center;
+      backdrop-filter: blur(4px);
+    }
+
+    .new-project-dialog {
+      background: var(--bg-secondary); border: 1px solid var(--border-color);
+      border-radius: 12px; padding: 24px; width: 500px; max-height: 80vh; overflow-y: auto;
+
+      h3 { margin: 0 0 16px; color: var(--text-primary); font-size: 18px; }
+    }
+
+    .np-input {
+      width: 100%; padding: 10px 14px; background: var(--bg-surface);
+      border: 1px solid var(--border-color); border-radius: 8px;
+      color: var(--text-primary); font-size: 14px; margin-bottom: 16px;
+      box-sizing: border-box; font-family: var(--font-sans);
+
+      &:focus { border-color: var(--accent-primary); outline: none; }
+    }
+
+    .np-types { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+
+    .np-type {
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+      background: var(--bg-surface); border: 2px solid var(--border-color);
+      border-radius: 8px; cursor: pointer; text-align: left; transition: all 0.2s;
+      font-family: var(--font-sans); width: 100%;
+
+      &:hover { border-color: var(--text-muted); }
+      &.selected { border-color: var(--accent-primary); background: rgba(88,166,255,0.05); }
+    }
+
+    .np-icon { font-size: 20px; width: 28px; text-align: center; flex-shrink: 0; }
+    .np-name { font-weight: 600; color: var(--text-primary); font-size: 13px; min-width: 140px; }
+    .np-desc { color: var(--text-muted); font-size: 11px; }
+
+    .np-actions { display: flex; justify-content: flex-end; gap: 8px; }
+
+    .np-cancel {
+      padding: 8px 16px; background: transparent; border: 1px solid var(--border-color);
+      border-radius: 6px; color: var(--text-secondary); cursor: pointer;
+      font-family: var(--font-sans);
+    }
+
+    .np-create {
+      padding: 8px 20px; background: var(--accent-primary); border: none;
+      border-radius: 6px; color: #fff; cursor: pointer; font-weight: 600;
+      font-family: var(--font-sans);
+
+      &:disabled { opacity: 0.4; cursor: not-allowed; }
+    }
   `],
 })
 export class EditorComponent implements AfterViewInit, OnDestroy {
@@ -414,6 +500,21 @@ export class EditorComponent implements AfterViewInit, OnDestroy {
 
   readonly openTabs = signal<EditorTab[]>([]);
   readonly activeTab = signal<EditorTab | null>(null);
+
+  // New Project dialog
+  readonly showNewProjectDialog = signal(false);
+  readonly newProjectName = signal('');
+  readonly newProjectType = signal('mern');
+  readonly projectTypes = [
+    { id: 'mern', name: 'MERN Stack', icon: '🟢', desc: 'MongoDB + Express + React + Node.js' },
+    { id: 'spring-angular', name: 'Spring Boot + Angular', icon: '☕', desc: 'Java 21 + Spring Boot + Angular 17' },
+    { id: 'spring', name: 'Spring Boot API', icon: '🍃', desc: 'Java 21 + Spring Boot + PostgreSQL' },
+    { id: 'angular', name: 'Angular App', icon: '🔴', desc: 'Angular 17 standalone + TypeScript' },
+    { id: 'fastapi', name: 'FastAPI', icon: '🐍', desc: 'Python + FastAPI + SQLAlchemy' },
+    { id: 'next', name: 'Next.js', icon: '▲', desc: 'Next.js 14 + React + TypeScript' },
+    { id: 'express', name: 'Express API', icon: '📦', desc: 'Node.js + Express + MongoDB' },
+    { id: 'empty', name: 'Empty Project', icon: '📁', desc: 'Just a folder' },
+  ];
 
   /** The language label shown in the Run button, or empty string if the file isn't runnable. */
   readonly runnerLabel = computed(() => {
@@ -706,6 +807,92 @@ export class EditorComponent implements AfterViewInit, OnDestroy {
 
     const command = commandFn(tab.path);
     this.runFile.emit(command);
+  }
+
+  newProject(): void {
+    this.showNewProjectDialog.set(true);
+  }
+
+  async createProject(): Promise<void> {
+    const name = this.newProjectName();
+    const type = this.newProjectType();
+    if (!name) return;
+
+    try {
+      // Ask user where to save
+      const result = await this.ipc.openDialog({
+        title: 'Choose location for new project',
+        properties: ['openDirectory'],
+      });
+
+      if (!result?.filePaths?.[0]) return;
+
+      const parentDir = result.filePaths[0];
+      const projectPath = parentDir + '/' + name;
+
+      // Create directory
+      await this.ipc.createDirectory({ path: projectPath });
+
+      // Create basic files based on type
+      const files = this.getProjectFiles(type, name);
+      for (const file of files) {
+        await this.ipc.writeFile({ path: projectPath + '/' + file.path, content: file.content });
+      }
+
+      // Open the project
+      this.folderOpened.emit(projectPath);
+      this.showNewProjectDialog.set(false);
+    } catch (err) {
+      console.error('[Editor] Failed to create project:', err);
+    }
+  }
+
+  private getProjectFiles(type: string, name: string): Array<{path: string; content: string}> {
+    switch (type) {
+      case 'mern':
+        return [
+          { path: 'package.json', content: JSON.stringify({ name, version: '1.0.0', scripts: { dev: 'node server.js' }, dependencies: { express: '^4.18.0', mongoose: '^8.0.0', cors: '^2.8.5', dotenv: '^16.0.0' } }, null, 2) },
+          { path: 'server.js', content: `const express = require('express');\nconst cors = require('cors');\nconst app = express();\napp.use(cors());\napp.use(express.json());\napp.get('/', (req, res) => res.json({ message: 'API running' }));\nconst PORT = process.env.PORT || 5000;\napp.listen(PORT, () => console.log('Server on port ' + PORT));\n` },
+          { path: '.env', content: 'PORT=5000\nMONGODB_URI=mongodb://localhost:27017/' + name },
+          { path: '.gitignore', content: 'node_modules/\n.env\n' },
+          { path: 'client/package.json', content: JSON.stringify({ name: name + '-client', version: '1.0.0', private: true, dependencies: { react: '^18.0.0', 'react-dom': '^18.0.0', 'react-scripts': '^5.0.0', axios: '^1.6.0' }, scripts: { start: 'react-scripts start', build: 'react-scripts build' }, proxy: 'http://localhost:5000' }, null, 2) },
+          { path: 'README.md', content: `# ${name}\n\nMERN Stack project.\n\n## Setup\n\`\`\`bash\nnpm install\ncd client && npm install\n\`\`\`\n\n## Run\n\`\`\`bash\nnpm run dev       # Backend\ncd client && npm start  # Frontend\n\`\`\`\n` },
+        ];
+      case 'spring-angular':
+        return [
+          { path: 'backend/pom.xml', content: `<?xml version="1.0" encoding="UTF-8"?>\n<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">\n  <modelVersion>4.0.0</modelVersion>\n  <parent>\n    <groupId>org.springframework.boot</groupId>\n    <artifactId>spring-boot-starter-parent</artifactId>\n    <version>3.4.0</version>\n  </parent>\n  <groupId>com.${name.replace(/[^a-z]/g, '')}</groupId>\n  <artifactId>${name}</artifactId>\n  <version>0.1.0</version>\n  <properties><java.version>21</java.version></properties>\n  <dependencies>\n    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>\n    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-data-jpa</artifactId></dependency>\n    <dependency><groupId>org.postgresql</groupId><artifactId>postgresql</artifactId><scope>runtime</scope></dependency>\n  </dependencies>\n</project>` },
+          { path: 'backend/src/main/java/com/app/Application.java', content: `package com.app;\n\nimport org.springframework.boot.SpringApplication;\nimport org.springframework.boot.autoconfigure.SpringBootApplication;\n\n@SpringBootApplication\npublic class Application {\n    public static void main(String[] args) {\n        SpringApplication.run(Application.class, args);\n    }\n}\n` },
+          { path: 'backend/src/main/resources/application.properties', content: 'server.port=8080\nspring.datasource.url=jdbc:postgresql://localhost:5432/' + name },
+          { path: 'frontend/.gitkeep', content: '' },
+          { path: 'README.md', content: `# ${name}\n\nSpring Boot + Angular project.\n` },
+        ];
+      case 'spring':
+        return [
+          { path: 'pom.xml', content: `<?xml version="1.0" encoding="UTF-8"?>\n<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"\n  xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">\n  <modelVersion>4.0.0</modelVersion>\n  <parent>\n    <groupId>org.springframework.boot</groupId>\n    <artifactId>spring-boot-starter-parent</artifactId>\n    <version>3.4.0</version>\n  </parent>\n  <groupId>com.${name.replace(/[^a-z]/g, '')}</groupId>\n  <artifactId>${name}</artifactId>\n  <version>0.1.0</version>\n  <properties><java.version>21</java.version></properties>\n  <dependencies>\n    <dependency><groupId>org.springframework.boot</groupId><artifactId>spring-boot-starter-web</artifactId></dependency>\n  </dependencies>\n</project>` },
+          { path: 'src/main/java/com/app/Application.java', content: `package com.app;\n\nimport org.springframework.boot.SpringApplication;\nimport org.springframework.boot.autoconfigure.SpringBootApplication;\n\n@SpringBootApplication\npublic class Application {\n    public static void main(String[] args) {\n        SpringApplication.run(Application.class, args);\n    }\n}\n` },
+          { path: 'src/main/resources/application.properties', content: 'server.port=8080' },
+          { path: 'README.md', content: `# ${name}\n\nSpring Boot API.\n` },
+        ];
+      case 'fastapi':
+        return [
+          { path: 'main.py', content: `from fastapi import FastAPI\n\napp = FastAPI(title="${name}")\n\n@app.get("/")\ndef root():\n    return {"message": "Hello from ${name}"}\n` },
+          { path: 'requirements.txt', content: 'fastapi==0.115.0\nuvicorn==0.30.0\n' },
+          { path: 'README.md', content: `# ${name}\n\nFastAPI project.\n\n\`\`\`bash\npip install -r requirements.txt\nuvicorn main:app --reload\n\`\`\`\n` },
+        ];
+      case 'express':
+        return [
+          { path: 'package.json', content: JSON.stringify({ name, version: '1.0.0', scripts: { dev: 'node server.js' }, dependencies: { express: '^4.18.0', mongoose: '^8.0.0', cors: '^2.8.5' } }, null, 2) },
+          { path: 'server.js', content: `const express = require('express');\nconst app = express();\napp.use(express.json());\napp.get('/', (req, res) => res.json({ message: '${name} API' }));\napp.listen(3000, () => console.log('Running on 3000'));\n` },
+          { path: 'README.md', content: `# ${name}\n\nExpress API.\n` },
+        ];
+      case 'empty':
+        return [
+          { path: 'README.md', content: `# ${name}\n` },
+          { path: '.gitignore', content: 'node_modules/\n.env\ntarget/\ndist/\n' },
+        ];
+      default:
+        return [{ path: 'README.md', content: `# ${name}\n` }];
+    }
   }
 
   /** Extract the file extension including the dot (e.g. ".py"). */

@@ -285,6 +285,9 @@ interface ModelGroup {
         @if (voiceService.isListening() && voiceService.transcript()) {
           <div class="voice-transcript">"{{ voiceService.transcript() }}"</div>
         }
+        @if (voiceService.error()) {
+          <div class="voice-error">{{ voiceService.error() }}</div>
+        }
 
         <div class="input-wrapper">
           <textarea
@@ -886,6 +889,13 @@ interface ModelGroup {
       font-style: italic;
       color: var(--text-secondary);
       margin-bottom: 6px;
+    }
+
+    .voice-error {
+      padding: 4px 12px;
+      font-size: 11px;
+      color: var(--accent-error);
+      text-align: center;
     }
 
     .voice-toggle-btn {
