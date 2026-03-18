@@ -292,15 +292,16 @@ import { ExtensionsService } from '../core/extensions.service';
   styles: [`
     :host {
       display: block;
-      height: 100%;
-      width: 100%;
+      height: 100vh;
+      width: 100vw;
+      overflow: hidden;
     }
 
     .workbench {
       display: flex;
       flex-direction: column;
-      height: 100%;
-      width: 100%;
+      height: 100vh;
+      width: 100vw;
       overflow: hidden;
       background: var(--bg-primary);
     }
