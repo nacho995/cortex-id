@@ -64,7 +64,7 @@ export function createMainWindow(): BrowserWindow {
     backgroundColor: '#0a0a14',
     ...(process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset' as const }
-      : { frame: false, titleBarStyle: 'hidden' as const }),
+      : { frame: false }),
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
@@ -85,15 +85,6 @@ export function createMainWindow(): BrowserWindow {
     win.show();
     console.log('[Electron] Main window shown');
   });
-
-  // Ensure content fills the entire window on Linux
-  if (process.platform === 'linux') {
-    win.on('ready-to-show', () => {
-      // Force resize to fill any gaps from window manager
-      const [w, h] = win.getSize();
-      win.setSize(w, h);
-    });
-  }
 
   // Persist window state on resize/move
   const saveWindowState = () => {
