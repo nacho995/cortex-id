@@ -92,51 +92,89 @@ export class ExtensionsService {
   }
 
   private async installTheme(ext: VSXExtension): Promise<void> {
+    const BUILTIN: Record<string, { name: string; vars: Record<string, string> }> = {
+      'dracula-theme.theme-dracula': {
+        name: 'Dracula',
+        vars: {
+          '--bg-primary': '#282a36', '--bg-secondary': '#1e1f29', '--bg-tertiary': '#191a21',
+          '--bg-surface': '#44475a', '--bg-hover': '#44475a', '--text-primary': '#f8f8f2',
+          '--text-secondary': '#cfcfc2', '--text-muted': '#6272a4', '--accent-primary': '#bd93f9',
+          '--accent-secondary': '#8be9fd', '--accent-error': '#ff5555', '--accent-warning': '#ffb86c',
+          '--accent-success': '#50fa7b', '--border-color': '#44475a', '--border-subtle': '#383a4a',
+        },
+      },
+      'enkia.tokyo-night': {
+        name: 'Tokyo Night',
+        vars: {
+          '--bg-primary': '#1a1b26', '--bg-secondary': '#16161e', '--bg-tertiary': '#13131a',
+          '--bg-surface': '#24283b', '--bg-hover': '#2a2e45', '--text-primary': '#c0caf5',
+          '--text-secondary': '#a9b1d6', '--text-muted': '#565f89', '--accent-primary': '#7aa2f7',
+          '--accent-secondary': '#7dcfff', '--accent-error': '#f7768e', '--accent-warning': '#e0af68',
+          '--accent-success': '#9ece6a', '--border-color': '#24283b', '--border-subtle': '#1f2335',
+        },
+      },
+      'catppuccin.catppuccin-vsc': {
+        name: 'Catppuccin Mocha',
+        vars: {
+          '--bg-primary': '#1e1e2e', '--bg-secondary': '#181825', '--bg-tertiary': '#11111b',
+          '--bg-surface': '#313244', '--bg-hover': '#45475a', '--text-primary': '#cdd6f4',
+          '--text-secondary': '#bac2de', '--text-muted': '#6c7086', '--accent-primary': '#cba6f7',
+          '--accent-secondary': '#89dceb', '--accent-error': '#f38ba8', '--accent-warning': '#fab387',
+          '--accent-success': '#a6e3a1', '--border-color': '#313244', '--border-subtle': '#45475a',
+        },
+      },
+      'arcticicestudio.nord-visual-studio-code': {
+        name: 'Nord',
+        vars: {
+          '--bg-primary': '#2e3440', '--bg-secondary': '#272c36', '--bg-tertiary': '#1f2430',
+          '--bg-surface': '#3b4252', '--bg-hover': '#434c5e', '--text-primary': '#eceff4',
+          '--text-secondary': '#d8dee9', '--text-muted': '#4c566a', '--accent-primary': '#88c0d0',
+          '--accent-secondary': '#81a1c1', '--accent-error': '#bf616a', '--accent-warning': '#ebcb8b',
+          '--accent-success': '#a3be8c', '--border-color': '#3b4252', '--border-subtle': '#434c5e',
+        },
+      },
+      'github.github-vscode-theme': {
+        name: 'GitHub Dark',
+        vars: {
+          '--bg-primary': '#0d1117', '--bg-secondary': '#161b22', '--bg-tertiary': '#010409',
+          '--bg-surface': '#21262d', '--bg-hover': '#30363d', '--text-primary': '#c9d1d9',
+          '--text-secondary': '#8b949e', '--text-muted': '#484f58', '--accent-primary': '#58a6ff',
+          '--accent-secondary': '#79c0ff', '--accent-error': '#f85149', '--accent-warning': '#d29922',
+          '--accent-success': '#3fb950', '--border-color': '#30363d', '--border-subtle': '#21262d',
+        },
+      },
+    };
+
+    const match = BUILTIN[ext.id]
+      ?? Object.entries(BUILTIN).find(([key]) =>
+        key.toLowerCase().includes(ext.name.toLowerCase())
+        || ext.id.toLowerCase().includes(key.split('.')[1]?.toLowerCase() ?? ''),
+      )?.[1];
+
+    if (match) {
+      const root = document.documentElement.style;
+      Object.entries(match.vars).forEach(([k, v]) => root.setProperty(k, v));
+      localStorage.setItem('cortex-ext-theme-vars', JSON.stringify(match.vars));
+      localStorage.setItem('cortex-theme', 'ext-' + ext.id);
+      this.installProgress.set(`Theme "${match.name}" applied!`);
+      return;
+    }
+
     try {
-      // Fetch extension details from Open VSX to get the package URL
-      const detailRes = await fetch(`https://open-vsx.org/api/${ext.publisher}/${ext.name}/${ext.version}`);
-      const detail = await detailRes.json();
-      
-      // Try to get the package/theme JSON
-      let themeJson: any = null;
-      
-      // Option 1: Try fetching the theme directly from files
-      if (detail.files?.['package.json']) {
-        const pkgRes = await fetch(detail.files['package.json']);
-        const pkg = await pkgRes.json();
-        
-        // Extract theme contributions
-        const themes = pkg.contributes?.themes;
-        if (themes && themes.length > 0) {
-          const themePath = themes[0].path;
-          // Construct theme file URL
-          const baseUrl = detail.files['package.json'].replace('/package.json', '');
-          const themeUrl = baseUrl + '/' + themePath;
-          
-          try {
-            const themeRes = await fetch(themeUrl);
-            themeJson = await themeRes.json();
-          } catch {
-            // Theme file not directly accessible, try alternative
-          }
-        }
-      }
-      
-      // Option 2: If we couldn't get the actual theme, create one from the extension metadata
-      if (!themeJson) {
-        // Generate a reasonable theme from the extension name/description
-        console.log('[Extensions] Could not fetch theme JSON, using fallback');
-        return; // Don't apply if we can't get the actual theme
-      }
-      
-      // Parse VS Code theme JSON into CortexTheme
+      const res = await fetch(`https://open-vsx.org/api/${ext.publisher}/${ext.name}/${ext.version}`);
+      if (!res.ok) return;
+      const meta = await res.json();
+      const jsonUrl = meta.downloads?.['universal'] ?? meta.files?.download;
+      if (!jsonUrl) return;
+      const themeRes = await fetch(jsonUrl);
+      if (!themeRes.ok) return;
+      const themeJson = await themeRes.json();
       const cortexTheme = this.parseVSCodeTheme(themeJson, ext);
       if (cortexTheme) {
         this.themeService.addImportedTheme(cortexTheme);
-        console.log('[Extensions] Theme applied:', cortexTheme.name);
       }
     } catch (err) {
-      console.warn('[Extensions] Could not fetch theme data:', err);
+      console.warn('[Extensions] Could not fetch remote theme:', err);
     }
   }
 

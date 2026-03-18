@@ -49,13 +49,12 @@ app.whenReady().then(async () => {
   registerAllHandlers(mainWindow);
 
   // Grant microphone and media permissions for Web Speech API
-  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
-    const allowedPermissions = ['media', 'microphone', 'clipboard-read', 'clipboard-sanitized-write'];
-    if (allowedPermissions.includes(permission)) {
-      callback(true);
-    } else {
-      callback(false);
-    }
+  const allowedPerms = ['media', 'microphone', 'audioCapture', 'clipboard-read', 'clipboard-sanitized-write'];
+  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) => {
+    callback(allowedPerms.includes(permission));
+  });
+  session.defaultSession.setPermissionCheckHandler((_wc, permission) => {
+    return allowedPerms.includes(permission);
   });
 
   // Load the app

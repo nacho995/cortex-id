@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   EventEmitter,
+  OnDestroy,
   OnInit,
   Output,
   signal,
@@ -390,7 +391,7 @@ interface TreeNode extends DirectoryEntry {
     }
   `],
 })
-export class FileExplorerComponent implements OnInit {
+export class FileExplorerComponent implements OnInit, OnDestroy {
   /** Single-click on a file — opens it (current behaviour) */
   @Output() fileSelected = new EventEmitter<string>();
 
@@ -409,6 +410,8 @@ export class FileExplorerComponent implements OnInit {
 
   private readonly treeData = signal<TreeNode[]>([]);
   readonly flatTree = signal<TreeNode[]>([]);
+  private fileWatcherCleanup: (() => void) | null = null;
+  private refreshDebounce: ReturnType<typeof setTimeout> | null = null;
 
   get rootName(): () => string {
     return () => {
@@ -443,11 +446,40 @@ export class FileExplorerComponent implements OnInit {
     this.rootPath.set(folderPath);
     await this.loadDirectory(folderPath);
     this.folderLoaded.emit(folderPath);
+    this.startWatching(folderPath);
+  }
+
+  private startWatching(folderPath: string): void {
+    this.fileWatcherCleanup?.();
+    this.fileWatcherCleanup = this.ipc.onFileChange(() => {
+      if (this.refreshDebounce) clearTimeout(this.refreshDebounce);
+      this.refreshDebounce = setTimeout(() => this.refresh(), 300);
+    });
+    this.ipc.watchDirectory({ path: folderPath, recursive: true }).catch(() => {});
+  }
+
+  ngOnDestroy(): void {
+    this.fileWatcherCleanup?.();
+    if (this.refreshDebounce) clearTimeout(this.refreshDebounce);
   }
 
   async refresh(): Promise<void> {
-    if (this.rootPath()) {
-      await this.loadDirectory(this.rootPath());
+    const root = this.rootPath();
+    if (!root) return;
+
+    const expandedPaths = new Set(
+      this.flatTree().filter(n => n.isDirectory && n.isExpanded).map(n => n.path),
+    );
+
+    await this.loadDirectory(root);
+
+    for (const dirPath of expandedPaths) {
+      const flat = this.flatTree();
+      const node = flat.find(n => n.path === dirPath);
+      if (node && node.isDirectory) {
+        node.isExpanded = true;
+        await this.loadDirectory(node.path, node);
+      }
     }
   }
 

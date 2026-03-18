@@ -1015,9 +1015,6 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
   // INNOVACIÓN C: Explain Level Slider (0=junior, 100=senior)
   readonly explainLevel = signal(50);
 
-  // Speech-to-text
-  readonly isRecording = signal(false);
-  private speechRecognition: any = null;
 
   private extractCodeBlock(content: string): string | null {
     const match = content.match(/```[\w]*\n([\s\S]*?)```/);
@@ -1497,27 +1494,21 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.rubberDuckMode.update(v => !v);
   }
 
-  toggleVoiceInput(): void {
-    if (this.isRecording()) {
-      this.stopVoiceInput();
-    } else {
-      this.startVoiceInput();
-    }
-  }
-
   onVoiceClick(): void {
     if (this.voiceService.isListening()) {
       this.voiceService.stopListening();
       const text = this.voiceService.getFinalTranscript();
-      if (text) { this.inputText = text; this.sendMessage(); }
+      if (text) {
+        this.inputText = text;
+        this.sendMessage();
+      }
     } else {
-      // Check if SpeechRecognition is available
       const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
       if (!SR) {
         this.messages.update(msgs => [...msgs, {
           id: crypto.randomUUID(),
           role: 'system' as const,
-          content: '🎤 Speech recognition not available. Use Chrome/Edge or check microphone permissions.',
+          content: 'Speech recognition not available. Use Chrome/Edge or enable microphone permissions.',
           timestamp: Date.now(),
         }]);
         this.cdr.markForCheck();
@@ -1529,85 +1520,6 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   toggleVoiceResponse(): void {
     this.voiceService.voiceResponseEnabled.update(v => !v);
-  }
-
-  private wantRecording = false;
-
-  private startVoiceInput(): void {
-    const SpeechRecognition = (window as any).SpeechRecognition
-      ?? (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      this.messages.update(msgs => [...msgs, {
-        id: crypto.randomUUID(),
-        role: 'system' as const,
-        content: 'Speech recognition is not supported in this browser. Use Chrome or Edge.',
-        timestamp: Date.now(),
-      }]);
-      this.cdr.markForCheck();
-      return;
-    }
-
-    this.wantRecording = true;
-    const recognition = new SpeechRecognition();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = navigator.language || 'en-US';
-    this.speechRecognition = recognition;
-
-    let finalTranscript = this.inputText;
-
-    recognition.onresult = (event: any) => {
-      let interim = '';
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript + ' ';
-        } else {
-          interim += transcript;
-        }
-      }
-      this.inputText = finalTranscript + interim;
-      this.cdr.markForCheck();
-    };
-
-    recognition.onerror = (event: any) => {
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        this.messages.update(msgs => [...msgs, {
-          id: crypto.randomUUID(),
-          role: 'system' as const,
-          content: 'Microphone access denied. Allow microphone in browser settings.',
-          timestamp: Date.now(),
-        }]);
-        this.wantRecording = false;
-      }
-      console.error('[Speech] error:', event.error);
-      this.cdr.markForCheck();
-    };
-
-    recognition.onend = () => {
-      if (this.wantRecording) {
-        try { recognition.start(); } catch { this.wantRecording = false; }
-      }
-      if (!this.wantRecording) {
-        this.isRecording.set(false);
-        this.speechRecognition = null;
-        this.cdr.markForCheck();
-      }
-    };
-
-    recognition.start();
-    this.isRecording.set(true);
-    this.cdr.markForCheck();
-  }
-
-  private stopVoiceInput(): void {
-    this.wantRecording = false;
-    if (this.speechRecognition) {
-      try { this.speechRecognition.stop(); } catch { /* already stopped */ }
-      this.speechRecognition = null;
-    }
-    this.isRecording.set(false);
-    this.cdr.markForCheck();
   }
 
   ngAfterViewChecked(): void {

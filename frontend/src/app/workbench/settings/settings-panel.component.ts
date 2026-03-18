@@ -18,10 +18,11 @@ import { IpcService } from '../../core/ipc.service';
 import { WebSocketService } from '../../core/websocket.service';
 import { ThemeService, THEMES, CortexTheme, BackgroundConfig } from '../../core/theme.service';
 import { VSCodeThemeParserService } from '../../core/vscode-theme-parser.service';
+import { ExtensionsService } from '../../core/extensions.service';
 import type { AppSettings } from '@cortex-id/shared-types/ipc/app.types';
 import { WsMessageType } from '@cortex-id/shared-types/ws/messages.types';
 
-type SettingsSection = 'general' | 'editor' | 'ai' | 'providers' | 'appearance' | 'keybindings';
+type SettingsSection = 'general' | 'editor' | 'ai' | 'providers' | 'appearance' | 'keybindings' | 'extensions';
 
 @Component({
   selector: 'app-settings-panel',
@@ -258,6 +259,75 @@ type SettingsSection = 'general' | 'editor' | 'ai' | 'providers' | 'appearance' 
                 }
               </div>
             </section>
+          }
+
+          <!-- ── Extensions ─────────────────────────────────────────────────── -->
+          @if (activeSection() === 'extensions') {
+            <div class="settings-section">
+              <h2>Installed Extensions</h2>
+              <p class="section-desc">Manage your installed extensions. Apply themes, enable/disable plugins.</p>
+
+              @if (extensionsService.installedExtensions().length === 0) {
+                <div class="empty-state">
+                  <p>No extensions installed yet.</p>
+                  <p class="hint">Search for extensions in the sidebar (Extensions icon) or browse Open VSX.</p>
+                </div>
+              } @else {
+                <div class="installed-extensions-list">
+                  @for (ext of extensionsService.installedExtensions(); track ext.id) {
+                    <div class="installed-ext-card">
+                      <div class="ext-card-left">
+                        <span class="ext-card-icon">{{ getExtIcon(ext) }}</span>
+                        <div class="ext-card-info">
+                          <span class="ext-card-name">{{ ext.displayName }}</span>
+                          <span class="ext-card-publisher">{{ ext.publisher }} · v{{ ext.version }}</span>
+                          <span class="ext-card-desc">{{ ext.description }}</span>
+                        </div>
+                      </div>
+                      <div class="ext-card-actions">
+                        @if (isThemeExtension(ext)) {
+                          <button class="ext-apply-btn" (click)="applyInstalledTheme(ext)">
+                            Apply Theme
+                          </button>
+                        }
+                        <button class="ext-uninstall-btn" (click)="uninstallExtension(ext.id)">
+                          Uninstall
+                        </button>
+                      </div>
+                    </div>
+                  }
+                </div>
+              }
+
+              <h3 class="subsection-title" style="margin-top: 24px">Available Themes</h3>
+              <p class="section-desc">Built-in themes you can switch between.</p>
+              <div class="builtin-themes-grid">
+                @for (theme of availableThemes(); track theme.id) {
+                  <button class="theme-card-ext"
+                    [class.active]="activeThemeId() === theme.id"
+                    (click)="selectTheme(theme.id)">
+                    <div class="theme-preview-mini">
+                      <div class="tp-bar" [style.background]="theme.colors.bgTertiary"></div>
+                      <div class="tp-body" [style.background]="theme.colors.bgPrimary">
+                        <span class="tp-dot" [style.background]="theme.colors.syntaxKeyword"></span>
+                        <span class="tp-dot" [style.background]="theme.colors.syntaxString"></span>
+                        <span class="tp-dot" [style.background]="theme.colors.syntaxFunction"></span>
+                      </div>
+                    </div>
+                    <span class="theme-card-name" [class.active]="activeThemeId() === theme.id">{{ theme.name }}</span>
+                    @if (activeThemeId() === theme.id) {
+                      <span class="theme-active-badge">Active</span>
+                    }
+                  </button>
+                }
+              </div>
+
+              <h3 class="subsection-title" style="margin-top: 24px">Import Theme</h3>
+              <button class="import-btn" (click)="importVSCodeTheme()">
+                <app-icon name="plus" [size]="14" />
+                Import VS Code Theme (.json)
+              </button>
+            </div>
           }
 
           <!-- ── General ─────────────────────────────────────────────────── -->
@@ -1691,6 +1761,150 @@ type SettingsSection = 'general' | 'editor' | 'ai' | 'providers' | 'appearance' 
         background: rgba(166, 226, 46, 0.1);
       }
     }
+
+    /* Extensions section */
+    .empty-state {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--text-muted);
+      .hint { font-size: 11px; margin-top: 8px; }
+    }
+
+    .installed-extensions-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .installed-ext-card {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      background: var(--bg-surface);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      transition: border-color 0.2s;
+      &:hover { border-color: var(--accent-primary); }
+    }
+
+    .ext-card-left {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .ext-card-icon { font-size: 24px; }
+
+    .ext-card-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .ext-card-name {
+      font-weight: 600;
+      font-size: 13px;
+      color: var(--text-primary);
+    }
+
+    .ext-card-publisher {
+      font-size: 11px;
+      color: var(--text-muted);
+    }
+
+    .ext-card-desc {
+      font-size: 11px;
+      color: var(--text-secondary);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .ext-card-actions {
+      display: flex;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .ext-apply-btn {
+      padding: 4px 12px;
+      background: var(--accent-primary);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      &:hover { filter: brightness(1.1); }
+    }
+
+    .ext-uninstall-btn {
+      padding: 4px 12px;
+      background: transparent;
+      color: var(--accent-error);
+      border: 1px solid var(--accent-error);
+      border-radius: 4px;
+      font-size: 11px;
+      cursor: pointer;
+      &:hover { background: var(--accent-error); color: #fff; }
+    }
+
+    .builtin-themes-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+    }
+
+    .theme-card-ext {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      padding: 8px;
+      background: var(--bg-surface);
+      border: 2px solid var(--border-color);
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s;
+      &:hover { border-color: var(--text-muted); transform: translateY(-2px); }
+      &.active { border-color: var(--accent-primary); box-shadow: 0 0 12px rgba(var(--accent-primary), 0.2); }
+    }
+
+    .theme-preview-mini {
+      width: 100%;
+      height: 48px;
+      border-radius: 4px;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .tp-bar { height: 8px; }
+    .tp-body {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 8px;
+    }
+    .tp-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    .theme-card-name {
+      font-size: 11px;
+      color: var(--text-secondary);
+      &.active { color: var(--accent-primary); font-weight: 600; }
+    }
+
+    .theme-active-badge {
+      font-size: 9px;
+      padding: 1px 6px;
+      background: var(--accent-primary);
+      color: #fff;
+      border-radius: 8px;
+    }
   `],
 })
 export class SettingsPanelComponent implements OnInit, OnDestroy {
@@ -1702,6 +1916,7 @@ export class SettingsPanelComponent implements OnInit, OnDestroy {
   private readonly themeService = inject(ThemeService);
   private readonly vscodeParser = inject(VSCodeThemeParserService);
   private readonly destroy$ = new Subject<void>();
+  readonly extensionsService = inject(ExtensionsService);
 
   readonly activeSection = signal<SettingsSection>('providers');
   readonly draft = signal<AppSettings>({
@@ -1818,6 +2033,7 @@ export class SettingsPanelComponent implements OnInit, OnDestroy {
     { id: 'editor' as const, label: 'Editor', icon: 'file' },
     { id: 'general' as const, label: 'General', icon: 'settings' },
     { id: 'keybindings' as const, label: 'Keybindings', icon: 'terminal' },
+    { id: 'extensions' as const, label: 'Extensions', icon: 'search' },
   ];
 
   readonly fontFamilies = [
@@ -2220,6 +2436,30 @@ export class SettingsPanelComponent implements OnInit, OnDestroy {
       this.ollamaStatus.set('offline');
       this.testingOllama.set(false);
     }, 2000);
+  }
+
+  // ── Extensions methods ─────────────────────────────────────────────────────
+
+  getExtIcon(ext: any): string {
+    if (this.isThemeExtension(ext)) return '🎨';
+    if (ext.name?.toLowerCase().includes('snippet')) return '✂️';
+    if (ext.name?.toLowerCase().includes('icon')) return '📁';
+    return '🧩';
+  }
+
+  isThemeExtension(ext: any): boolean {
+    const name = (ext.name || '').toLowerCase();
+    const desc = (ext.description || '').toLowerCase();
+    const cat = (ext.category || '').toLowerCase();
+    return cat.includes('theme') || name.includes('theme') || desc.includes('theme') || desc.includes('color');
+  }
+
+  applyInstalledTheme(ext: any): void {
+    this.extensionsService.install(ext);
+  }
+
+  uninstallExtension(id: string): void {
+    this.extensionsService.uninstall(id);
   }
 
   ngOnDestroy(): void {
