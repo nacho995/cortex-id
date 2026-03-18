@@ -283,9 +283,6 @@ interface ModelGroup {
           </div>
         </div>
 
-        @if (voiceService.modelStatus() === 'loading') {
-          <div class="voice-status">Loading speech model (first time only)...</div>
-        }
         @if (voiceService.isListening()) {
           <div class="voice-transcript">
             @if (voiceService.transcript()) {
@@ -317,7 +314,7 @@ interface ModelGroup {
           <button class="voice-btn"
             [class.listening]="voiceService.isListening()"
             [class.processing]="voiceService.isProcessing()"
-            [disabled]="voiceService.modelStatus() === 'loading'"
+            [disabled]="voiceService.isProcessing()"
             (click)="onVoiceClick()"
             title="Voice input (Alt+V)"
             aria-label="Voice input">
@@ -325,8 +322,6 @@ interface ModelGroup {
               <span class="voice-waves"><span></span><span></span><span></span></span>
             } @else if (voiceService.isProcessing()) {
               ⏳
-            } @else if (voiceService.modelStatus() === 'loading') {
-              ⌛
             } @else { 🎤 }
           </button>
 
