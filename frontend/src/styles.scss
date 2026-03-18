@@ -120,115 +120,213 @@ app-root {
   z-index: 1;
 }
 
-/* ── Transparent panels for background visibility ──────────────────────────── */
+/* ── Transparent IDE when background is active ─────────────────────────── */
 body.has-bg-image {
+  /* Root-level CSS variables for transparency */
+  --panel-bg: rgba(10, 10, 20, 0.65) !important;
+  --panel-bg-darker: rgba(5, 5, 12, 0.75) !important;
+  --panel-bg-lighter: rgba(15, 15, 30, 0.55) !important;
+  --panel-border: rgba(0, 255, 136, 0.12) !important;
+
+  /* Main shell */
   app-root,
-  app-workbench,
-  app-workbench > .workbench,
-  .workbench,
-  .workbench-layout {
+  app-workbench {
+    background: transparent !important;
+  }
+
+  /* Workbench container */
+  .workbench {
     background: transparent !important;
   }
 
   /* Titlebar */
   .titlebar {
-    background: rgba(5, 5, 12, 0.85) !important;
-    backdrop-filter: blur(12px);
-    border-bottom: 1px solid rgba(0, 255, 136, 0.2) !important;
-    box-shadow: 0 1px 20px rgba(0, 255, 136, 0.05);
+    background: var(--panel-bg-darker) !important;
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border-bottom-color: var(--panel-border) !important;
   }
 
-  /* Sidebar */
+  /* Sidebar - file explorer, extensions */
   .sidebar-area,
-  .sidebar,
+  app-sidebar,
   .sidebar-content,
   .file-tree,
   .explorer-panel,
+  .explorer-header,
+  .extensions-panel,
   .activity-bar {
-    background: rgba(8, 8, 18, 0.75) !important;
-    backdrop-filter: blur(8px);
-  }
-
-  .sidebar-area {
-    border-right: 1px solid rgba(0, 255, 136, 0.1) !important;
+    background: var(--panel-bg) !important;
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
   }
 
   /* Editor area */
+  .editor-area,
   .editor-container,
-  .editor-area {
-    background: rgba(10, 10, 20, 0.7) !important;
+  app-editor {
+    background: transparent !important;
   }
 
-  /* Monaco editor — fully transparent so background shows through */
+  /* Monaco editor - make transparent */
   .monaco-editor,
   .monaco-editor .overflow-guard,
   .monaco-editor-background,
+  .monaco-editor .margin,
+  .monaco-editor .monaco-scrollable-element,
+  .monaco-editor .lines-content,
+  .monaco-editor .view-lines,
   .monaco-editor .inputarea.ime-input {
     background: transparent !important;
+    background-color: transparent !important;
   }
 
-  .monaco-editor .margin {
-    background: transparent !important;
+  /* Monaco minimap */
+  .monaco-editor .minimap {
+    opacity: 0.6;
   }
 
-  .monaco-editor .lines-content {
-    background: transparent !important;
+  /* Monaco line highlight - subtle */
+  .monaco-editor .current-line {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: rgba(255, 255, 255, 0.05) !important;
   }
 
-  /* Welcome screen */
-  .welcome-screen {
-    background: transparent !important;
-  }
-
-  /* Tabs */
+  /* Tab bar */
   .tabs-bar,
-  .editor-tab {
-    background: rgba(8, 8, 18, 0.7) !important;
-    backdrop-filter: blur(4px);
-  }
-
-  .editor-tab.active {
-    background: rgba(15, 15, 30, 0.8) !important;
-  }
-
-  /* Bottom panel / terminal */
-  .panels-container,
-  .bottom-panel-area,
-  .terminal-container,
-  .xterm-viewport {
-    background: rgba(5, 5, 12, 0.8) !important;
-    backdrop-filter: blur(8px);
-  }
-
-  /* AI / chat panel */
-  .chat-panel,
-  .ai-panel-area,
-  .chat-container {
-    background: rgba(8, 8, 18, 0.75) !important;
-    backdrop-filter: blur(8px);
-    border-left: 1px solid rgba(0, 212, 255, 0.15) !important;
-  }
-
-  /* Statusbar */
-  .statusbar {
-    background: rgba(5, 5, 12, 0.85) !important;
+  .tab-bar,
+  .editor-tabs {
+    background: var(--panel-bg-darker) !important;
     backdrop-filter: blur(12px);
-    border-top: 1px solid rgba(0, 255, 136, 0.2) !important;
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .editor-tab,
+  .tab-item {
+    background: transparent !important;
+    &.active {
+      background: rgba(255, 255, 255, 0.05) !important;
+    }
+  }
+
+  /* Bottom panel - terminal */
+  .bottom-panel-area,
+  app-panels,
+  .panels-container,
+  .terminal-container,
+  .terminal-header {
+    background: var(--panel-bg) !important;
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+  }
+
+  /* xterm terminal */
+  .xterm,
+  .xterm-viewport,
+  .xterm-screen {
+    background: transparent !important;
+    background-color: transparent !important;
+  }
+
+  /* AI Chat panel */
+  .ai-panel-area,
+  app-chat-panel,
+  .chat-container,
+  .chat-panel,
+  .chat-header,
+  .chat-messages,
+  .chat-input-area {
+    background: var(--panel-bg) !important;
+    backdrop-filter: blur(12px) saturate(150%);
+    -webkit-backdrop-filter: blur(12px) saturate(150%);
+  }
+
+  /* Chat messages */
+  .message.assistant,
+  .message.ai {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border-color: rgba(255, 255, 255, 0.06) !important;
+  }
+
+  .message.user {
+    background: rgba(255, 255, 255, 0.06) !important;
+  }
+
+  /* Status bar */
+  .statusbar {
+    background: var(--panel-bg-darker) !important;
+    backdrop-filter: blur(16px) saturate(180%);
+    -webkit-backdrop-filter: blur(16px) saturate(180%);
+    border-top-color: var(--panel-border) !important;
   }
 
   /* Settings modal */
   .settings-modal {
-    background: rgba(8, 8, 18, 0.92) !important;
-    backdrop-filter: blur(16px);
+    background: var(--panel-bg-darker) !important;
+    backdrop-filter: blur(20px) saturate(200%);
+    -webkit-backdrop-filter: blur(20px) saturate(200%);
   }
 
-  /* Neon-tinted scrollbars */
-  ::-webkit-scrollbar-thumb {
-    background: rgba(0, 255, 136, 0.2) !important;
+  /* All borders get the neon tint */
+  .sidebar-area {
+    border-right-color: var(--panel-border) !important;
+  }
+  .ai-panel-area {
+    border-left-color: var(--panel-border) !important;
+  }
+  .bottom-panel-area {
+    border-top-color: var(--panel-border) !important;
+  }
 
+  /* Scrollbars */
+  ::-webkit-scrollbar-track {
+    background: transparent !important;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1) !important;
     &:hover {
-      background: rgba(0, 255, 136, 0.4) !important;
+      background: rgba(255, 255, 255, 0.2) !important;
     }
+  }
+
+  /* Resize handles */
+  .resize-handle:hover {
+    background: rgba(0, 255, 136, 0.3) !important;
+  }
+
+  /* Welcome screen */
+  .welcome-container,
+  .welcome-screen {
+    background: transparent !important;
+  }
+
+  /* FAB buttons */
+  .settings-fab,
+  .chat-fab {
+    background: var(--panel-bg) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border-color: var(--panel-border) !important;
+  }
+
+  /* Token bar */
+  .token-bar {
+    background: var(--panel-bg-darker) !important;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  /* Agent flow panel */
+  .agent-flow,
+  .agent-card {
+    background: var(--panel-bg-lighter) !important;
+    backdrop-filter: blur(8px);
+  }
+
+  /* Orchestrator plan */
+  .plan-container {
+    background: var(--panel-bg) !important;
+    backdrop-filter: blur(12px);
   }
 }
 
