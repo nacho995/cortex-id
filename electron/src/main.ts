@@ -10,7 +10,7 @@
  *  - Set up the application menu
  */
 
-import { app, BrowserWindow, Menu, MenuItem } from 'electron';
+import { app, BrowserWindow, Menu, MenuItem, session } from 'electron';
 import { createMainWindow } from './window/window-manager';
 import { resolveFrontendEntryPath } from './window/frontend-path';
 import { registerAllHandlers } from './ipc';
@@ -47,6 +47,16 @@ app.whenReady().then(async () => {
 
   // Register all IPC handlers
   registerAllHandlers(mainWindow);
+
+  // Grant microphone and media permissions for Web Speech API
+  session.defaultSession.setPermissionRequestHandler((webContents, permission, callback) => {
+    const allowedPermissions = ['media', 'microphone', 'clipboard-read', 'clipboard-sanitized-write'];
+    if (allowedPermissions.includes(permission)) {
+      callback(true);
+    } else {
+      callback(false);
+    }
+  });
 
   // Load the app
   const frontendEntry = resolveFrontendEntryPath({

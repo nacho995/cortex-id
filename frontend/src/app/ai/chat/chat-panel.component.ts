@@ -1511,6 +1511,18 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
       const text = this.voiceService.getFinalTranscript();
       if (text) { this.inputText = text; this.sendMessage(); }
     } else {
+      // Check if SpeechRecognition is available
+      const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (!SR) {
+        this.messages.update(msgs => [...msgs, {
+          id: crypto.randomUUID(),
+          role: 'system' as const,
+          content: '🎤 Speech recognition not available. Use Chrome/Edge or check microphone permissions.',
+          timestamp: Date.now(),
+        }]);
+        this.cdr.markForCheck();
+        return;
+      }
       this.voiceService.startListening();
     }
   }
