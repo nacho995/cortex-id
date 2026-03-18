@@ -1588,21 +1588,33 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
 
   async onVoiceClick(): Promise<void> {
     if (this.voiceService.isListening() || this.voiceService.isProcessing()) {
+      // Stop recording — after Whisper processes, auto-send
       this.voiceService.onEnd = () => {
         const text = this.voiceService.getFinalTranscript();
         if (text && text !== 'Processing speech...') {
           this.inputText = text;
           this.cdr.markForCheck();
+          // Auto-send after a short delay so user sees the text
+          setTimeout(() => {
+            if (this.inputText.trim()) {
+              this.sendMessage();
+            }
+          }, 500);
         }
       };
       this.voiceService.stopListening();
     } else {
+      // Start recording — set up the callback for when it ends
       this.voiceService.onEnd = () => {
         const text = this.voiceService.getFinalTranscript();
         if (text && text !== 'Processing speech...') {
           this.inputText = text;
-          this.sendMessage();
           this.cdr.markForCheck();
+          setTimeout(() => {
+            if (this.inputText.trim()) {
+              this.sendMessage();
+            }
+          }, 500);
         }
       };
       await this.voiceService.startListening();
