@@ -61,8 +61,8 @@ export function createMainWindow(): BrowserWindow {
     minWidth: 800,
     minHeight: 600,
     show: false, // Show after content loads to avoid white flash
-    transparent: true,
-    backgroundColor: '#00000000',
+    transparent: false,
+    backgroundColor: '#0a0a14',
     ...(process.platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset' as const }
       : { frame: false }),
@@ -84,6 +84,16 @@ export function createMainWindow(): BrowserWindow {
   // Show window once content is ready (avoids white flash)
   win.once('ready-to-show', () => {
     win.show();
+    // On Linux, force content to fill entire window
+    if (process.platform !== 'darwin') {
+      const bounds = win.getBounds();
+      win.setContentBounds({
+        x: bounds.x,
+        y: bounds.y,
+        width: bounds.width,
+        height: bounds.height,
+      });
+    }
     console.log('[Electron] Main window shown');
   });
 
