@@ -65,6 +65,7 @@ app.whenReady().then(async () => {
       'https://*.open-vsx.org/*', 'https://*.eclipsecontent.org/*', 'https://open-vsx.org/*',
       'https://huggingface.co/*', 'https://*.huggingface.co/*',
       'https://cdn-lfs.huggingface.co/*', 'https://cdn-lfs-us-1.huggingface.co/*',
+      'https://*.hf.co/*', 'https://*.xethub.hf.co/*',
     ] },
     (details, callback) => {
       const headers = { ...details.responseHeaders };
