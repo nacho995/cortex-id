@@ -62,8 +62,8 @@ export function createMainWindow(): BrowserWindow {
     minHeight: 600,
     show: false, // Show after content loads to avoid white flash
     backgroundColor: '#1e1e1e',
-    titleBarStyle: process.platform === 'darwin' ? 'hiddenInset' : 'default',
-    frame: process.platform !== 'darwin',
+    titleBarStyle: 'hiddenInset',
+    frame: false,
     webPreferences: {
       preload: preloadPath,
       contextIsolation: true,
