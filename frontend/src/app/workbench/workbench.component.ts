@@ -668,7 +668,7 @@ import { ExtensionsService } from '../core/extensions.service';
     /* ── Settings FAB ─────────────────────────────────────────────────────────── */
     .settings-fab {
       position: fixed;
-      bottom: 28px;
+      bottom: calc(var(--statusbar-height) + 8px);
       left: 12px;
       width: 40px;
       height: 40px;

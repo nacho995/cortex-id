@@ -194,6 +194,13 @@ type SidebarSection = 'explorer' | 'search' | 'git' | 'timeline' | 'extensions';
       flex-shrink: 0;
     }
 
+    :host-context(body.has-bg-image) .sidebar,
+    :host-context(body.has-bg-image) .activity-bar,
+    :host-context(body.has-bg-image) .sidebar-panel {
+      background: transparent !important;
+      border-color: transparent !important;
+    }
+
     .activity-btn {
       display: flex;
       align-items: center;

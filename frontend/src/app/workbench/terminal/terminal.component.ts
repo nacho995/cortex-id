@@ -12,6 +12,7 @@ import { Terminal } from 'xterm';
 import { FitAddon } from 'xterm-addon-fit';
 import { WebLinksAddon } from 'xterm-addon-web-links';
 import { IpcService } from '../../core/ipc.service';
+import { ThemeService } from '../../core/theme.service';
 import { IconComponent } from '../../shared/ui/icon/icon.component';
 
 @Component({
@@ -100,6 +101,11 @@ import { IconComponent } from '../../shared/ui/icon/icon.component';
       height: 100%;
       background: var(--bg-tertiary);
       overflow: hidden;
+    }
+
+    :host-context(body.has-bg-image) .terminal-wrapper,
+    :host-context(body.has-bg-image) .terminal-placeholder {
+      background: transparent !important;
     }
 
     .terminal-header {
@@ -239,6 +245,7 @@ export class TerminalComponent implements AfterViewInit, OnDestroy {
   @ViewChild('terminalContainer') terminalContainer!: ElementRef<HTMLDivElement>;
 
   private readonly ipc = inject(IpcService);
+  private readonly themeService = inject(ThemeService);
 
   readonly terminalId = signal('');
   readonly terminalPid = signal(0);
@@ -257,9 +264,14 @@ export class TerminalComponent implements AfterViewInit, OnDestroy {
   }
 
   private initXterm(): void {
+    // Use transparent background when a wallpaper/background image is active
+    // so the IDE background shows through the terminal canvas.
+    const hasBgImage = this.themeService.backgroundConfig().type === 'image';
+    const terminalBackground = hasBgImage ? '#00000000' : '#11111b';
+
     this.xterm = new Terminal({
       theme: {
-        background: '#11111b',
+        background: terminalBackground,
         foreground: '#cdd6f4',
         cursor: '#f5e0dc',
         cursorAccent: '#11111b',
