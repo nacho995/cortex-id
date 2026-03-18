@@ -267,7 +267,10 @@ export class TerminalComponent implements AfterViewInit, OnDestroy {
     // Use transparent background when a wallpaper/background image is active
     // so the IDE background shows through the terminal canvas.
     const hasBgImage = this.themeService.backgroundConfig().type === 'image';
-    const terminalBackground = hasBgImage ? '#00000000' : '#11111b';
+    // Use 'transparent' (not hex alpha) — xterm.js requires allowTransparency: true
+    // AND a CSS-keyword 'transparent' or 'rgba(0,0,0,0)' for the canvas to be clear.
+    // '#00000000' is ignored by some xterm.js versions even with allowTransparency.
+    const terminalBackground = hasBgImage ? 'transparent' : '#11111b';
 
     this.xterm = new Terminal({
       theme: {

@@ -292,8 +292,8 @@ import { ExtensionsService } from '../core/extensions.service';
   styles: [`
     :host {
       display: block;
-      height: 100vh;
-      width: 100vw;
+      height: 100%;
+      width: 100%;
     }
 
     .workbench {

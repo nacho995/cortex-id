@@ -314,16 +314,16 @@ const RUNNER_LABELS: Record<string, string> = {
       color: var(--text-muted);
 
       kbd {
-        padding: 2px 7px;
-        background: rgba(255, 255, 255, 0.06);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        border-bottom-width: 2px;
+        padding: 1px 5px;
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: var(--radius-sm);
         font-family: var(--font-mono);
         font-size: 10px;
-        color: var(--text-secondary);
+        color: var(--text-muted);
         white-space: nowrap;
-        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.3);
+        box-shadow: none;
+        opacity: 0.7;
       }
     }
 
