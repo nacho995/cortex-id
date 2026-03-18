@@ -517,6 +517,42 @@ export class ThemeService {
     this.pendingMonacoTheme = null;
   }
 
+  /**
+   * Convert any CSS color (hex, rgba, rgb) to a 6 or 8 digit hex string.
+   * Monaco only accepts hex colors, not rgba().
+   */
+  private toHex(color: string): string {
+    if (!color) return '#000000';
+
+    // Already hex
+    if (color.startsWith('#')) return color;
+
+    // rgba(r, g, b, a) or rgb(r, g, b)
+    const rgbaMatch = color.match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+))?\s*\)/);
+    if (rgbaMatch) {
+      const r = parseInt(rgbaMatch[1]).toString(16).padStart(2, '0');
+      const g = parseInt(rgbaMatch[2]).toString(16).padStart(2, '0');
+      const b = parseInt(rgbaMatch[3]).toString(16).padStart(2, '0');
+      if (rgbaMatch[4] !== undefined) {
+        const a = Math.round(parseFloat(rgbaMatch[4]) * 255).toString(16).padStart(2, '0');
+        return `#${r}${g}${b}${a}`;
+      }
+      return `#${r}${g}${b}`;
+    }
+
+    return color;
+  }
+
+  /**
+   * Extract just the hex color part (6 chars) for Monaco token rules.
+   * Token foreground colors must be 6-char hex without #.
+   */
+  private toHex6(color: string): string {
+    const hex = this.toHex(color);
+    // Remove # and take first 6 chars (no alpha for token rules)
+    return hex.replace('#', '').substring(0, 6);
+  }
+
   /** Register a custom Monaco theme and activate it */
   registerMonacoTheme(theme: CortexTheme): void {
     if (!this.monacoReady) {
@@ -547,38 +583,38 @@ export class ThemeService {
         base: theme.monacoTheme,
         inherit: true,
         rules: [
-          { token: 'keyword', foreground: theme.colors.syntaxKeyword.replace('#', '') },
-          { token: 'keyword.operator', foreground: theme.colors.syntaxKeyword.replace('#', '') },
-          { token: 'string', foreground: theme.colors.syntaxString.replace('#', '') },
-          { token: 'string.escape', foreground: theme.colors.syntaxString.replace('#', '') },
-          { token: 'comment', foreground: theme.colors.syntaxComment.replace('#', '') },
-          { token: 'comment.line', foreground: theme.colors.syntaxComment.replace('#', '') },
-          { token: 'comment.block', foreground: theme.colors.syntaxComment.replace('#', '') },
-          { token: 'type', foreground: theme.colors.syntaxType.replace('#', '') },
-          { token: 'type.identifier', foreground: theme.colors.syntaxType.replace('#', '') },
-          { token: 'entity.name.function', foreground: theme.colors.syntaxFunction.replace('#', '') },
-          { token: 'support.function', foreground: theme.colors.syntaxFunction.replace('#', '') },
-          { token: 'number', foreground: theme.colors.syntaxNumber.replace('#', '') },
-          { token: 'number.float', foreground: theme.colors.syntaxNumber.replace('#', '') },
-          { token: 'variable', foreground: theme.colors.syntaxVariable.replace('#', '') },
-          { token: 'variable.other', foreground: theme.colors.syntaxVariable.replace('#', '') },
+          { token: 'keyword', foreground: this.toHex6(theme.colors.syntaxKeyword) },
+          { token: 'keyword.operator', foreground: this.toHex6(theme.colors.syntaxKeyword) },
+          { token: 'string', foreground: this.toHex6(theme.colors.syntaxString) },
+          { token: 'string.escape', foreground: this.toHex6(theme.colors.syntaxString) },
+          { token: 'comment', foreground: this.toHex6(theme.colors.syntaxComment), fontStyle: 'italic' },
+          { token: 'comment.line', foreground: this.toHex6(theme.colors.syntaxComment), fontStyle: 'italic' },
+          { token: 'comment.block', foreground: this.toHex6(theme.colors.syntaxComment), fontStyle: 'italic' },
+          { token: 'type', foreground: this.toHex6(theme.colors.syntaxType) },
+          { token: 'type.identifier', foreground: this.toHex6(theme.colors.syntaxType) },
+          { token: 'entity.name.function', foreground: this.toHex6(theme.colors.syntaxFunction) },
+          { token: 'support.function', foreground: this.toHex6(theme.colors.syntaxFunction) },
+          { token: 'number', foreground: this.toHex6(theme.colors.syntaxNumber) },
+          { token: 'number.float', foreground: this.toHex6(theme.colors.syntaxNumber) },
+          { token: 'variable', foreground: this.toHex6(theme.colors.syntaxVariable) },
+          { token: 'variable.other', foreground: this.toHex6(theme.colors.syntaxVariable) },
         ],
         colors: {
-          'editor.background': theme.colors.bgPrimary,
-          'editor.foreground': theme.colors.textPrimary,
-          'editor.lineHighlightBackground': theme.colors.bgSurface,
-          'editor.selectionBackground': theme.colors.accentPrimary + '33',
-          'editorCursor.foreground': theme.colors.accentPrimary,
-          'editorLineNumber.foreground': theme.colors.textMuted,
-          'editorLineNumber.activeForeground': theme.colors.textSecondary,
-          'editorIndentGuide.background': theme.colors.borderColor,
-          'editorIndentGuide.activeBackground': theme.colors.textMuted,
-          'editor.selectionHighlightBackground': theme.colors.accentPrimary + '22',
-          'editorBracketMatch.background': theme.colors.accentPrimary + '33',
-          'editorBracketMatch.border': theme.colors.accentPrimary,
-          'scrollbarSlider.background': theme.colors.bgHover + '88',
-          'scrollbarSlider.hoverBackground': theme.colors.bgHover,
-          'scrollbarSlider.activeBackground': theme.colors.textMuted,
+          'editor.background': this.toHex(theme.colors.bgPrimary),
+          'editor.foreground': this.toHex(theme.colors.textPrimary),
+          'editor.lineHighlightBackground': this.toHex(theme.colors.bgSurface),
+          'editor.selectionBackground': this.toHex(theme.colors.accentPrimary) + '33',
+          'editorCursor.foreground': this.toHex(theme.colors.accentPrimary),
+          'editorLineNumber.foreground': this.toHex(theme.colors.textMuted),
+          'editorLineNumber.activeForeground': this.toHex(theme.colors.textSecondary),
+          'editorIndentGuide.background': this.toHex(theme.colors.borderColor),
+          'editorIndentGuide.activeBackground': this.toHex(theme.colors.textMuted),
+          'editor.selectionHighlightBackground': this.toHex(theme.colors.accentPrimary) + '22',
+          'editorBracketMatch.background': this.toHex(theme.colors.accentPrimary) + '33',
+          'editorBracketMatch.border': this.toHex(theme.colors.accentPrimary),
+          'scrollbarSlider.background': this.toHex(theme.colors.bgHover) + '88',
+          'scrollbarSlider.hoverBackground': this.toHex(theme.colors.bgHover),
+          'scrollbarSlider.activeBackground': this.toHex(theme.colors.textMuted),
         },
       });
 
