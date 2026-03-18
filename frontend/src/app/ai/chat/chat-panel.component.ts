@@ -282,8 +282,20 @@ interface ModelGroup {
           </div>
         </div>
 
-        @if (voiceService.isListening() && voiceService.transcript()) {
-          <div class="voice-transcript">"{{ voiceService.transcript() }}"</div>
+        @if (voiceService.modelStatus() === 'loading') {
+          <div class="voice-status">Loading speech model (first time only)...</div>
+        }
+        @if (voiceService.isListening()) {
+          <div class="voice-transcript">
+            @if (voiceService.transcript()) {
+              "{{ voiceService.transcript() }}"
+            } @else {
+              Listening... speak now
+            }
+          </div>
+        }
+        @if (voiceService.isProcessing()) {
+          <div class="voice-status">Transcribing...</div>
         }
         @if (voiceService.error()) {
           <div class="voice-error">{{ voiceService.error() }}</div>
@@ -303,11 +315,17 @@ interface ModelGroup {
 
           <button class="voice-btn"
             [class.listening]="voiceService.isListening()"
+            [class.processing]="voiceService.isProcessing()"
+            [disabled]="voiceService.modelStatus() === 'loading'"
             (click)="onVoiceClick()"
             title="Voice input (Alt+V)"
             aria-label="Voice input">
             @if (voiceService.isListening()) {
               <span class="voice-waves"><span></span><span></span><span></span></span>
+            } @else if (voiceService.isProcessing()) {
+              ⏳
+            } @else if (voiceService.modelStatus() === 'loading') {
+              ⌛
             } @else { 🎤 }
           </button>
 
@@ -851,6 +869,18 @@ interface ModelGroup {
         background: rgba(255, 0, 64, 0.1);
         animation: pulseVoice 1.5s ease infinite;
       }
+
+      &.processing {
+        border-color: var(--accent-primary);
+        background: rgba(166, 226, 46, 0.08);
+        animation: pulseVoice 1.5s ease infinite;
+        cursor: not-allowed;
+      }
+
+      &:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
     }
 
     .voice-waves {
@@ -896,6 +926,19 @@ interface ModelGroup {
       font-size: 11px;
       color: var(--accent-error);
       text-align: center;
+    }
+
+    .voice-status {
+      padding: 4px 12px;
+      font-size: 11px;
+      color: var(--accent-primary);
+      text-align: center;
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
     }
 
     .voice-toggle-btn {
@@ -1506,33 +1549,26 @@ export class ChatPanelComponent implements OnInit, OnDestroy, AfterViewChecked {
     this.rubberDuckMode.update(v => !v);
   }
 
-  onVoiceClick(): void {
-    if (this.voiceService.isListening()) {
-      // Stop recording; transcript will be read in the onEnd callback.
-      this.voiceService.stopListening();
-    } else {
-      const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-      if (!SR) {
-        this.messages.update(msgs => [...msgs, {
-          id: crypto.randomUUID(),
-          role: 'system' as const,
-          content: 'Speech recognition not available. Use Chrome/Edge or enable microphone permissions.',
-          timestamp: Date.now(),
-        }]);
-        this.cdr.markForCheck();
-        return;
-      }
-      // Register one-shot callback: when recognition ends (manually or naturally),
-      // read the final transcript and send the message.
+  async onVoiceClick(): Promise<void> {
+    if (this.voiceService.isListening() || this.voiceService.isProcessing()) {
       this.voiceService.onEnd = () => {
         const text = this.voiceService.getFinalTranscript();
-        if (text) {
+        if (text && text !== 'Processing speech...') {
+          this.inputText = text;
+          this.cdr.markForCheck();
+        }
+      };
+      this.voiceService.stopListening();
+    } else {
+      this.voiceService.onEnd = () => {
+        const text = this.voiceService.getFinalTranscript();
+        if (text && text !== 'Processing speech...') {
           this.inputText = text;
           this.sendMessage();
+          this.cdr.markForCheck();
         }
-        this.cdr.markForCheck();
       };
-      this.voiceService.startListening();
+      await this.voiceService.startListening();
     }
   }
 

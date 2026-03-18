@@ -8,110 +8,115 @@ export class VoiceService {
   readonly finalTranscript = signal('');
   readonly voiceResponseEnabled = signal(true);
   readonly error = signal('');
+  readonly isProcessing = signal(false);
+  readonly modelStatus = signal<'idle' | 'loading' | 'ready' | 'error'>('idle');
 
-  private recognition: any = null;
+  private mediaRecorder: MediaRecorder | null = null;
+  private audioChunks: Blob[] = [];
+  private whisperPipeline: any = null;
   private synthesis = typeof window !== 'undefined' ? window.speechSynthesis : null;
   private _onEnd: (() => void) | null = null;
 
   set onEnd(cb: (() => void) | null) { this._onEnd = cb; }
 
-  startListening(): void {
-    const SR = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SR) {
-      this.error.set('Speech recognition not available in this browser');
-      return;
-    }
+  /** Load the Whisper model (first time downloads ~75MB, then cached) */
+  async loadModel(): Promise<void> {
+    if (this.whisperPipeline) return;
+    if (this.modelStatus() === 'loading') return;
 
-    // Stop any existing session
-    if (this.recognition) {
-      try { this.recognition.stop(); } catch {}
-      this.recognition = null;
-    }
-
-    this.transcript.set('');
-    this.finalTranscript.set('');
+    this.modelStatus.set('loading');
     this.error.set('');
 
-    const recognition = new SR();
-    recognition.continuous = true;        // Keep listening until user stops
-    recognition.interimResults = true;     // Show live text while speaking
-    recognition.maxAlternatives = 1;
-    recognition.lang = navigator.language || 'es-ES';
+    try {
+      // Dynamic import to avoid loading the library at startup
+      const { pipeline } = await import('@huggingface/transformers');
 
-    recognition.onstart = () => {
-      this.isListening.set(true);
-      this.error.set('');
-      console.log('[Voice] Started listening');
-    };
-
-    recognition.onend = () => {
-      console.log('[Voice] Ended');
-      this.isListening.set(false);
-      const cb = this._onEnd;
-      this._onEnd = null;
-      cb?.();
-
-      // If continuous and still supposed to be listening, restart
-      // (some browsers stop after silence even with continuous:true)
-    };
-
-    recognition.onerror = (event: any) => {
-      const errorType = event.error || 'unknown';
-      console.error('[Voice] Error:', errorType);
-
-      switch (errorType) {
-        case 'no-speech':
-          // User didn't speak — not a real error, restart
-          this.error.set('No speech detected. Try again.');
-          break;
-        case 'audio-capture':
-          this.error.set('No microphone found. Check permissions.');
-          break;
-        case 'not-allowed':
-          this.error.set('Microphone permission denied.');
-          break;
-        case 'network':
-          this.error.set('Network error. Speech recognition requires internet.');
-          break;
-        case 'service-not-allowed':
-          this.error.set('Speech service not available. Try Chrome or Edge.');
-          break;
-        default:
-          this.error.set('Voice error: ' + errorType);
-      }
-
-      this.isListening.set(false);
-    };
-
-    recognition.onresult = (event: any) => {
-      let final = '';
-      let interim = '';
-      for (let i = 0; i < event.results.length; i++) {
-        const result = event.results[i];
-        if (result.isFinal) {
-          final += result[0].transcript;
-        } else {
-          interim += result[0].transcript;
+      console.log('[Voice] Loading Whisper model (first time may take a minute)...');
+      this.whisperPipeline = await pipeline(
+        'automatic-speech-recognition',
+        'Xenova/whisper-tiny',  // ~40MB, fast
+        {
+          dtype: 'fp32',
+          device: 'wasm',
         }
-      }
-      this.finalTranscript.set(final);
-      this.transcript.set(final + interim);
-    };
+      );
 
-    this.recognition = recognition;
+      this.modelStatus.set('ready');
+      console.log('[Voice] Whisper model loaded successfully');
+    } catch (err: any) {
+      console.error('[Voice] Failed to load Whisper model:', err);
+      this.modelStatus.set('error');
+      this.error.set('Failed to load speech model: ' + err.message);
+    }
+  }
+
+  /** Start recording audio from microphone */
+  async startListening(): Promise<void> {
+    this.error.set('');
+    this.transcript.set('');
+    this.finalTranscript.set('');
+
+    // Load model if not ready
+    if (!this.whisperPipeline) {
+      await this.loadModel();
+      if (!this.whisperPipeline) return;
+    }
 
     try {
-      recognition.start();
-    } catch (e: any) {
-      this.error.set('Could not start voice: ' + e.message);
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          sampleRate: 16000,
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+        }
+      });
+
+      this.audioChunks = [];
+      this.mediaRecorder = new MediaRecorder(stream, {
+        mimeType: this.getSupportedMimeType(),
+      });
+
+      this.mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          this.audioChunks.push(event.data);
+        }
+      };
+
+      this.mediaRecorder.onstop = async () => {
+        // Stop all tracks
+        stream.getTracks().forEach(track => track.stop());
+
+        // Process the recorded audio
+        await this.processAudio();
+      };
+
+      this.mediaRecorder.onerror = (event: any) => {
+        this.error.set('Recording error: ' + (event.error?.message || 'unknown'));
+        this.isListening.set(false);
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      this.mediaRecorder.start(250); // Collect data every 250ms
+      this.isListening.set(true);
+      console.log('[Voice] Recording started');
+
+    } catch (err: any) {
+      if (err.name === 'NotAllowedError') {
+        this.error.set('Microphone permission denied. Allow it in system settings.');
+      } else if (err.name === 'NotFoundError') {
+        this.error.set('No microphone found.');
+      } else {
+        this.error.set('Microphone error: ' + err.message);
+      }
       this.isListening.set(false);
     }
   }
 
+  /** Stop recording and process audio */
   stopListening(): void {
-    if (this.recognition) {
-      try { this.recognition.stop(); } catch {}
-      this.recognition = null;
+    if (this.mediaRecorder && this.mediaRecorder.state !== 'inactive') {
+      this.mediaRecorder.stop();
     }
     this.isListening.set(false);
   }
@@ -126,6 +131,91 @@ export class VoiceService {
     this.transcript.set('');
     return t;
   }
+
+  /** Process recorded audio through Whisper */
+  private async processAudio(): Promise<void> {
+    if (this.audioChunks.length === 0) return;
+
+    this.isProcessing.set(true);
+    this.transcript.set('Processing speech...');
+
+    try {
+      const audioBlob = new Blob(this.audioChunks, { type: 'audio/webm' });
+
+      // Convert blob to Float32Array for Whisper
+      const audioBuffer = await this.blobToAudioBuffer(audioBlob);
+
+      if (!this.whisperPipeline) {
+        this.error.set('Whisper model not loaded');
+        return;
+      }
+
+      console.log('[Voice] Transcribing audio...');
+      const result = await this.whisperPipeline(audioBuffer, {
+        language: 'spanish',
+        task: 'transcribe',
+        chunk_length_s: 30,
+        stride_length_s: 5,
+      });
+
+      const text = result.text?.trim() || '';
+      console.log('[Voice] Transcription:', text);
+
+      this.finalTranscript.set(text);
+      this.transcript.set(text);
+
+      // Trigger onEnd callback
+      const cb = this._onEnd;
+      this._onEnd = null;
+      cb?.();
+
+    } catch (err: any) {
+      console.error('[Voice] Transcription failed:', err);
+      this.error.set('Transcription failed: ' + err.message);
+    } finally {
+      this.isProcessing.set(false);
+    }
+  }
+
+  /** Convert audio Blob to Float32Array for Whisper */
+  private async blobToAudioBuffer(blob: Blob): Promise<Float32Array> {
+    const arrayBuffer = await blob.arrayBuffer();
+    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({
+      sampleRate: 16000,
+    });
+
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+    const channelData = audioBuffer.getChannelData(0); // Mono
+
+    // Resample to 16kHz if needed
+    if (audioBuffer.sampleRate !== 16000) {
+      const ratio = 16000 / audioBuffer.sampleRate;
+      const newLength = Math.round(channelData.length * ratio);
+      const resampled = new Float32Array(newLength);
+      for (let i = 0; i < newLength; i++) {
+        const srcIndex = i / ratio;
+        const lower = Math.floor(srcIndex);
+        const upper = Math.min(lower + 1, channelData.length - 1);
+        const frac = srcIndex - lower;
+        resampled[i] = channelData[lower] * (1 - frac) + channelData[upper] * frac;
+      }
+      await audioContext.close();
+      return resampled;
+    }
+
+    await audioContext.close();
+    return channelData;
+  }
+
+  private getSupportedMimeType(): string {
+    const types = ['audio/webm;codecs=opus', 'audio/webm', 'audio/ogg;codecs=opus', 'audio/mp4'];
+    for (const type of types) {
+      if (MediaRecorder.isTypeSupported(type)) return type;
+    }
+    return 'audio/webm';
+  }
+
+  // ── Text-to-Speech (stays the same) ──
 
   speak(text: string): void {
     if (!this.synthesis || !this.voiceResponseEnabled()) return;
