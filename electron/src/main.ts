@@ -67,15 +67,16 @@ app.whenReady().then(async () => {
       'https://cdn-lfs.huggingface.co/*', 'https://cdn-lfs-us-1.huggingface.co/*',
     ] },
     (details, callback) => {
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          'Access-Control-Allow-Origin': ['*'],
-          'Access-Control-Allow-Methods': ['GET, OPTIONS'],
-          'Access-Control-Allow-Headers': ['Content-Type'],
-        },
-      });
-    }
+      const headers = { ...details.responseHeaders };
+      // Remove any existing CORS headers to avoid duplicates
+      delete headers['Access-Control-Allow-Origin'];
+      delete headers['access-control-allow-origin'];
+      // Set our own
+      headers['Access-Control-Allow-Origin'] = ['*'];
+      headers['Access-Control-Allow-Methods'] = ['GET, POST, OPTIONS'];
+      headers['Access-Control-Allow-Headers'] = ['*'];
+      callback({ responseHeaders: headers });
+    },
   );
 
   // Load the app
