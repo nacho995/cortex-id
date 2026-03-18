@@ -94,23 +94,21 @@ body {
 /* ── Background image via fixed ::before pseudo-element ─────────────────────── */
 body.has-bg-image {
   background-color: #000 !important;
+}
 
-  &::before {
-    content: '';
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background-image: var(--bg-image-url);
-    background-size: cover;
-    background-position: center;
-    filter: blur(var(--bg-blur, 4px));
-    opacity: var(--bg-opacity, 0.2);
-    z-index: -1;
-    pointer-events: none;
-    transform: scale(1.1);
-  }
+body.has-bg-image::before {
+  content: '';
+  position: fixed;
+  top: 0; left: 0;
+  width: 100vw; height: 100vh;
+  background-image: var(--bg-image-url);
+  background-size: cover;
+  background-position: center;
+  filter: blur(var(--bg-blur, 2px));
+  opacity: var(--bg-opacity, 0.25);
+  z-index: -1;
+  pointer-events: none;
+  transform: scale(1.1);
 }
 
 /* app-root must sit above the ::before pseudo-element */
@@ -119,18 +117,15 @@ app-root {
   z-index: 1;
 }
 
-/* ── Fused transparent IDE — one layer, no rectangles ──────────────────── */
+/* ── IntelliJ-style fused transparent IDE ──────────────────────────────── */
 body.has-bg-image {
-  --panel-border: rgba(255, 255, 255, 0.06);
 
-  /* Single transparent overlay on the whole workbench */
-  app-root,
-  app-workbench,
-  .workbench {
+  /* Root transparent */
+  app-root, app-workbench, .workbench {
     background: transparent !important;
   }
 
-  /* One unified semi-transparent layer for the entire layout */
+  /* Single dark tint over the entire IDE */
   .workbench::after {
     content: '';
     position: fixed;
@@ -138,95 +133,60 @@ body.has-bg-image {
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.55);
+    background: rgba(0, 0, 0, 0.65);
     z-index: 0;
     pointer-events: none;
   }
 
-  /* Everything inside workbench above the overlay */
-  .titlebar,
-  .workbench-layout,
-  .statusbar,
-  .settings-fab,
-  .chat-fab,
-  .pair-review,
-  .focus-bar {
+  /* All content above the overlay */
+  .titlebar, .workbench-layout, .statusbar,
+  .settings-fab, .chat-fab, .pair-review, .focus-bar {
     position: relative;
     z-index: 1;
   }
 
-  /* ALL panels: fully transparent, no individual backgrounds */
+  /* ── Everything transparent — NO individual backgrounds ── */
   .titlebar,
-  .sidebar-area,
-  .center-area,
-  .editor-area,
-  .bottom-panel-area,
-  .ai-panel-area,
-  .statusbar,
-  app-sidebar,
-  app-editor,
-  app-panels,
-  app-chat-panel,
-  .sidebar-content,
-  .file-tree,
-  .explorer-panel,
-  .explorer-header,
-  .extensions-panel,
-  .activity-bar,
-  .editor-container,
-  .terminal-container,
-  .terminal-header,
-  .chat-container,
-  .chat-panel,
-  .chat-header,
-  .chat-messages,
-  .chat-input-area,
-  .welcome-container,
-  .welcome-screen,
-  .token-bar,
-  .agent-flow,
-  .plan-container,
-  .tabs-bar,
-  .tab-bar,
-  .editor-tabs {
+  .sidebar-area, .center-area, .editor-area,
+  .bottom-panel-area, .ai-panel-area, .statusbar,
+  app-sidebar, app-editor, app-panels, app-chat-panel,
+  .sidebar-content, .file-tree, .explorer-panel,
+  .explorer-header, .extensions-panel, .activity-bar,
+  .editor-container, .terminal-container, .terminal-header,
+  .chat-container, .chat-panel, .chat-header,
+  .chat-messages, .chat-input-area,
+  .welcome-container, .welcome-screen,
+  .token-bar, .agent-flow, .plan-container,
+  .tabs-bar, .tab-bar, .editor-tabs,
+  .editor-tab, .tab-item {
     background: transparent !important;
     background-color: transparent !important;
   }
 
-  /* Titlebar — slightly visible for usability */
+  /* ── Titlebar — very dark, almost opaque like IntelliJ ── */
   .titlebar {
-    background: rgba(0, 0, 0, 0.2) !important;
-    border-bottom: 1px solid var(--panel-border) !important;
+    background: rgba(0, 0, 0, 0.35) !important;
+    border-bottom: none !important;
   }
 
-  /* Statusbar — slightly visible */
+  /* ── Statusbar — match IntelliJ bottom bar ── */
   .statusbar {
-    background: rgba(0, 0, 0, 0.2) !important;
-    border-top: 1px solid var(--panel-border) !important;
+    background: rgba(0, 0, 0, 0.3) !important;
+    border-top: none !important;
   }
 
-  /* Panel separators — thin subtle lines only */
-  .sidebar-area {
-    border-right: 1px solid var(--panel-border) !important;
-  }
-  .ai-panel-area {
-    border-left: 1px solid var(--panel-border) !important;
-  }
-  .bottom-panel-area {
-    border-top: 1px solid var(--panel-border) !important;
+  /* ── NO BORDERS between panels — seamless fusion ── */
+  .sidebar-area { border-right: none !important; }
+  .ai-panel-area { border-left: none !important; }
+  .bottom-panel-area { border-top: none !important; }
+  .tabs-bar, .tab-bar, .editor-tabs { border-bottom: none !important; }
+
+  /* ── Tab active — very subtle ── */
+  .editor-tab.active, .tab-item.active {
+    background: rgba(255, 255, 255, 0.03) !important;
   }
 
-  /* Tabs — transparent with subtle active indicator */
-  .editor-tab,
-  .tab-item {
-    background: transparent !important;
-    &.active {
-      background: rgba(255, 255, 255, 0.04) !important;
-      border-bottom: 2px solid var(--accent-primary) !important;
-    }
-  }
-
-  /* Monaco — fully transparent */
+  /* ── Monaco — fully transparent ── */
   .monaco-editor,
   .monaco-editor .overflow-guard,
   .monaco-editor-background,
@@ -239,103 +199,82 @@ body.has-bg-image {
     background-color: transparent !important;
   }
 
-  .monaco-editor .minimap {
-    opacity: 0.5;
-  }
+  .monaco-editor .minimap { opacity: 0.4; }
 
   .monaco-editor .current-line {
-    background: rgba(255, 255, 255, 0.02) !important;
-    border-color: rgba(255, 255, 255, 0.04) !important;
+    background: rgba(255, 255, 255, 0.015) !important;
+    border: none !important;
   }
 
-  /* xterm — transparent */
-  .xterm,
-  .xterm-viewport,
-  .xterm-screen {
+  /* ── xterm — fully transparent (image shows most here) ── */
+  .xterm, .xterm-viewport, .xterm-screen {
     background: transparent !important;
     background-color: transparent !important;
   }
 
-  /* Chat messages — very subtle glass */
-  .message.assistant,
-  .message.ai {
+  /* ── Chat ── */
+  .message.assistant, .message.ai {
     background: rgba(255, 255, 255, 0.02) !important;
-    border: 1px solid rgba(255, 255, 255, 0.04) !important;
+    border: none !important;
   }
   .message.user {
-    background: rgba(255, 255, 255, 0.04) !important;
-    border: 1px solid rgba(255, 255, 255, 0.06) !important;
-  }
-
-  /* Agent cards — very subtle */
-  .agent-card {
     background: rgba(255, 255, 255, 0.03) !important;
-    border-color: rgba(255, 255, 255, 0.06) !important;
+    border: none !important;
   }
 
-  /* Scrollbars — almost invisible */
-  ::-webkit-scrollbar-track {
-    background: transparent !important;
+  /* ── Agent cards ── */
+  .agent-card {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border-color: rgba(255, 255, 255, 0.04) !important;
   }
+
+  /* ── Scrollbars — invisible track, subtle thumb ── */
+  ::-webkit-scrollbar-track { background: transparent !important; }
   ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.08) !important;
-    &:hover {
-      background: rgba(255, 255, 255, 0.15) !important;
-    }
-  }
-
-  /* Resize handles */
-  .resize-handle:hover {
-    background: rgba(255, 255, 255, 0.1) !important;
-  }
-
-  /* FABs */
-  .settings-fab,
-  .chat-fab {
-    background: rgba(0, 0, 0, 0.3) !important;
-    border-color: var(--panel-border) !important;
-    backdrop-filter: blur(8px);
-  }
-
-  /* Settings modal — this one SHOULD be opaque-ish for readability */
-  .settings-modal {
-    background: rgba(10, 10, 20, 0.85) !important;
-    backdrop-filter: blur(20px) saturate(200%);
-    -webkit-backdrop-filter: blur(20px) saturate(200%);
-  }
-
-  /* Inputs/selects inside panels — slight background for usability */
-  input, textarea, select {
-    background: rgba(255, 255, 255, 0.05) !important;
-    border-color: rgba(255, 255, 255, 0.1) !important;
-  }
-
-  /* Hover effects — very subtle */
-  .tree-item:hover,
-  .explorer-item:hover,
-  .file-item:hover {
-    background: rgba(255, 255, 255, 0.04) !important;
-  }
-
-  .tree-item.selected,
-  .explorer-item.selected,
-  .file-item.active {
     background: rgba(255, 255, 255, 0.06) !important;
+    &:hover { background: rgba(255, 255, 255, 0.12) !important; }
   }
 
-  /* Context menus and dropdowns — slightly more opaque for readability */
-  .context-menu,
-  .dropdown,
-  .dropdown-menu,
-  .model-dropdown {
-    background: rgba(10, 10, 20, 0.9) !important;
-    backdrop-filter: blur(16px);
+  /* ── Resize handles — invisible until hover ── */
+  .resize-handle { background: transparent !important; }
+  .resize-handle:hover { background: rgba(255, 255, 255, 0.08) !important; }
+
+  /* ── FABs ── */
+  .settings-fab, .chat-fab {
+    background: rgba(0, 0, 0, 0.4) !important;
+    border: none !important;
   }
 
-  /* Tooltips */
+  /* ── Settings modal — opaque for readability ── */
+  .settings-modal {
+    background: rgba(15, 15, 25, 0.92) !important;
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+  }
+
+  /* ── Dropdowns / context menus — opaque ── */
+  .context-menu, .dropdown, .dropdown-menu, .model-dropdown {
+    background: rgba(15, 15, 25, 0.95) !important;
+    backdrop-filter: blur(12px);
+  }
+
+  /* ── Inputs — subtle bg for usability ── */
+  input, textarea, select {
+    background: rgba(255, 255, 255, 0.04) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  /* ── Tree hover/selected — barely visible ── */
+  .tree-item:hover, .explorer-item:hover, .file-item:hover {
+    background: rgba(255, 255, 255, 0.03) !important;
+  }
+  .tree-item.selected, .explorer-item.selected, .file-item.active {
+    background: rgba(255, 255, 255, 0.05) !important;
+  }
+
+  /* ── Tooltips ── */
   .tooltip-content {
-    background: rgba(0, 0, 0, 0.8) !important;
-    backdrop-filter: blur(8px);
+    background: rgba(0, 0, 0, 0.85) !important;
   }
 }
 
