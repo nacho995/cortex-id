@@ -15,6 +15,7 @@ import { ChatPanelComponent } from '../ai/chat/chat-panel.component';
 import { IconComponent } from '../shared/ui/icon/icon.component';
 import { TooltipDirective } from '../shared/ui/tooltip/tooltip.directive';
 import { SettingsPanelComponent } from './settings/settings-panel.component';
+import { BackgroundComponent } from '../shared/ui/background/background.component';
 import { IpcService } from '../core/ipc.service';
 import { ConfigService } from '../core/config.service';
 import { ToastService } from '../shared/ui/toast/toast.service';
@@ -34,10 +35,14 @@ import { ExtensionsService } from '../core/extensions.service';
     IconComponent,
     TooltipDirective,
     SettingsPanelComponent,
+    BackgroundComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="workbench">
+      <!-- Background effects (image or animation) — position: fixed, z-index: 0, pointer-events: none -->
+      <app-background />
+
       <!-- Title Bar (Electron custom titlebar) -->
       <div class="titlebar">
         <!-- Window controls (macOS style) -->
@@ -817,10 +822,10 @@ export class WorkbenchComponent implements OnInit {
 
   readonly ipc = inject(IpcService);
   readonly layoutService = inject(LayoutService);
+  readonly themeService = inject(ThemeService);
   private readonly config = inject(ConfigService);
   private readonly toast = inject(ToastService);
   private readonly moodService = inject(MoodService);
-  private readonly themeService = inject(ThemeService);
   private readonly extensionsService = inject(ExtensionsService);
 
   /* Layout state */
